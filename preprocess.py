@@ -40,7 +40,14 @@ for image_path in all_image_files:
     base_name = os.path.basename(image_path)
     patient_id = base_name.rsplit('_', 1)[0] 
 
-    mask_path = os.path.join(MASK_DIR, base_name)
+    try:
+        slice_part = base_name.rsplit('_', 1)[1] 
+    except IndexError:
+        print(f"Fehlerhaftes Format übersprungen: {base_name}")
+        continue
+
+    mask_base_name = f"{patient_id}_mask_{slice_part}" 
+    mask_path = os.path.join(MASK_DIR, mask_base_name)
 
     if not os.path.exists(mask_path):
         print(f"Warnung: Maske nicht gefunden für {base_name}")
@@ -50,8 +57,8 @@ for image_path in all_image_files:
             target_img_dir = 'data_processed/train/image/'
             target_mask_dir = 'data_processed/train/mask/'
     elif patient_id in val_ids:
-            target_img_dir = 'data_processed/validate/image/'
-            target_mask_dir = 'data_processed/validate/mask/'
+            target_img_dir = 'data_processed/val/image/'
+            target_mask_dir = 'data_processed/val/mask/'
     elif patient_id in test_ids:
             target_img_dir = 'data_processed/test/image/'
             target_mask_dir = 'data_processed/test/mask/'
@@ -68,7 +75,10 @@ for image_path in all_image_files:
         
     LUNGEN_FARBE_BGR = np.array([254, 0, 0]) 
 
-    binary_mask = cv2.inRange(multiclass_mask_color, LUNGEN_FARBE_BGR, LUNGEN_FARBE_BGR)
+    lower_blue = np.array([200, 0, 0])
+    upper_blue = np.array([255, 50, 50])
+    
+    binary_mask = cv2.inRange(multiclass_mask_color, lower_blue, upper_blue)
     
     cv2.imwrite(os.path.join(target_mask_dir, base_name), binary_mask)
 
