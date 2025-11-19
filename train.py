@@ -22,20 +22,19 @@ def train_fn(loader, model, optimizer, loss_fn):
         data_img = data['image'].to(config.DEVICE)
         targets = data['mask'].to(config.DEVICE)
 
-         # --- Forward Pass ---
+        #Forward Pass
         targets = targets.unsqueeze(1).float()
         predictions = model(data_img)
-        bce = loss_fn(predictions, targets)
-        dice = dice_loss(torch.sigmoid(predictions), targets, multiclass=False)
+        bce = loss_fn(predictions, targets) #Binary Cross-Entropy, misst Pixel-weise Wahrscheinlichkeiten 
+        dice = dice_loss(torch.sigmoid(predictions).squeeze(1), targets.squeeze(1), multiclass=False)
         loss = bce + dice
 
-        # --- Backward Pass ---
+        # Backward Pass
         optimizer.zero_grad() 
         loss.backward() 
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)      
         optimizer.step()      
 
-        # --- Update Ladebalken ---
         loop.set_postfix(loss=loss.item())
 
 def main():
@@ -82,7 +81,7 @@ def main():
     for epoch in range(config.NUM_EPOCHS):
         print(f"\nEpoche {epoch+1}/{config.NUM_EPOCHS}")
         
-        train_fn(train_loader, model, optimizer, loss_fn, scaler)
+        train_fn(train_loader, model, optimizer, loss_fn)
 
         checkpoint = {
             "state_dict": model.state_dict(),
@@ -95,9 +94,8 @@ def main():
         scheduler.step(val_dice_score)
 
         save_predictions_as_imgs(
-            val_loader, model, folder="saved_images/", device=config.DEVICE
+            val_loader, model, folder="saved_images/", device=config.DEVICE, num_examples=8, epoche=epoch
         )
 
 if __name__ == "__main__":
     main()
-

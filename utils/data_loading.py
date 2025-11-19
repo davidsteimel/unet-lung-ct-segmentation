@@ -2,35 +2,46 @@ import os
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
-import numpy as np
+from pathlib import Path 
+import torchvision.transforms as transforms 
 
 class BasicDataset(Dataset):
-    def __init__(self, images_dir, masks_dir):
-        self.images_dir = images_dir
-        self.masks_dir = masks_dir
-        self.ids = os.listdir(images_dir)
+    def __init__(self, images_dir, masks_dir, target_size=(160, 160)):
+        self.images_dir = Path(images_dir)
+        self.masks_dir = Path(masks_dir)
+        #self.ids = os.listdir(images_dir)
+        self.ids = [file for file in os.listdir(images_dir) if not file.startswith('.')]
         
-        print(f'Dataset erstellt mit {len(self.ids)} Beispielen.')
+        self.transform = transforms.Compose([
+            transforms.Resize(target_size, interpolation=transforms.InterpolationMode.BILINEAR),
+            transforms.ToTensor() 
+        ])
         
+        self.mask_transform = transforms.Compose([
+            transforms.Resize(target_size, interpolation=transforms.InterpolationMode.NEAREST),
+            transforms.ToTensor()
+        ])
+
     def __len__(self):
         return len(self.ids)
 
     def __getitem__(self, index):
         filename = self.ids[index]
+   
+        img_path = self.images_dir / filename
+        mask_path = self.masks_dir / filename
         
-        img_path = os.path.join(self.images_dir, filename)
-        mask_path = os.path.join(self.masks_dir, filename)
-       
-        image = Image.open(img_path)
-        mask = Image.open(mask_path)
+        image = Image.open(img_path).convert("L")
+        mask = Image.open(mask_path).convert("L")
+      
+        image_tensor = self.transform(image)
+        mask_tensor = self.mask_transform(mask)
         
-        image_tensor = torch.from_numpy(np.asarray(image))
-        mask_tensor = torch.from_numpy(np.asarray(mask))
+        # Maske ist exakt 0.0 oder 1.0
+        mask_tensor = (mask_tensor > 0.5).float()
         
-        # Normalisierung (Werte 0-255 -> 0.0-1.0)
-        image_tensor = image_tensor.float() / 255.0
-        mask_tensor = mask_tensor.float() / 255.0
-    
+        mask_tensor = mask_tensor.squeeze(0) 
+
         return {
             'image': image_tensor,
             'mask': mask_tensor

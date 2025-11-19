@@ -26,6 +26,21 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+# Model Checkpoints (Gewichte)
+*.pth
+*.pth.tar
+*.pt
+my_checkpoint.pth.tar  # Zur Sicherheit explizit
+
+# Generierte Bilder und Logs
+saved_images/
+test_results/
+runs/        # Falls du Tensorboard/WandB nutzt
+__pycache__/ # Sollte eh schon drin sein
+
+# MacOS specific
+.DS_Store
+
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.

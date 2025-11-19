@@ -5,7 +5,6 @@ import torch.nn.functional as F
 class DoubleConv(nn.Module):
     """(Convolution => [BatchNorm] => ReLU) * 2"""
 
-
     def __init__(self, in_channels, out_channels):
         super(DoubleConv, self).__init__()
         self.double_conv = nn.Sequential(
@@ -33,20 +32,18 @@ class Down(nn.Module):
         return x
     
 class Up(nn.Module):
-    """Upscaling dann DoubleConv"""
-
     def __init__(self, in_channels, out_channels):
-        super(Up, self).__init__()
-        self.up = nn.ConvTranspose2d(in_channels, in_channels // 2, 2, 2)
-        self.conv = DoubleConv(in_channels, out_channels)
+        super().__init__()
+        self.up = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2)
+        self.conv = DoubleConv(in_channels, out_channels) 
 
     def forward(self, x1, x2):
-        x1_up = self.up(x1)
+        x1 = self.up(x1)
         diffY = x2.size()[2] - x1.size()[2]
         diffX = x2.size()[3] - x1.size()[3]
-        x1_up = F.pad(x1_up, [diffX // 2, diffX - diffX // 2,
-                       diffY // 2, diffY - diffY // 2])
-        x = torch.cat([x1_up, x2], dim=1)
-        x = self.conv(x)
-        return x
+
+        x1 = F.pad(x1, [diffX // 2, diffX - diffX // 2,
+                        diffY // 2, diffY - diffY // 2])
+        x = torch.cat([x1, x2], dim=1)
+        return self.conv(x)
         

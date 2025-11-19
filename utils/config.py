@@ -4,10 +4,10 @@ import torch
 # Hyperparameter
 LEARNING_RATE = 1e-4
 DEVICE =  torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-BATCH_SIZE = 16  
+BATCH_SIZE = 16
 NUM_EPOCHS = 10  
-NUM_WORKERS = 2  
-PIN_MEMORY = True
+NUM_WORKERS = 0
+PIN_MEMORY = False
 LOAD_MODEL = False 
 
 # Modell-Einstellungen
