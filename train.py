@@ -2,7 +2,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from tqdm import tqdm  
+from tqdm import tqdm
+import argparse
 
 import utils.config as config
 from utils.dice_score import dice_loss
@@ -38,6 +39,24 @@ def train_fn(loader, model, optimizer, loss_fn):
         loop.set_postfix(loss=loss.item())
 
 def main():
+    parser = argparse.ArgumentParser(description='UNet Training Script')
+    
+    parser.add_argument('--epochs', '-e', type=int, default=config.NUM_EPOCHS,
+                        help='Anzahl der Trainings-Epochen')
+    parser.add_argument('--batch-size', '-b', type=int, default=config.BATCH_SIZE,
+                        help='Batch Größe für das Training')
+    parser.add_argument('--lr', '--learning-rate', type=float, default=config.LEARNING_RATE,
+                        help='Lernrate für den Optimierer')
+    parser.add_argument('--load', '-l', action='store_true', default=config.LOAD_MODEL,
+                        help='Checkpoint laden, um Training fortzusetzen')
+    
+    args = parser.parse_args()
+
+    config.NUM_EPOCHS = args.epochs
+    config.BATCH_SIZE = args.batch_size
+    config.LEARNING_RATE = args.lr
+    config.LOAD_MODEL = args.load
+
     model = UNet(n_channels=config.IN_CHANNELS, n_classes=config.NUM_CLASSES).to(config.DEVICE)
     
     loss_fn = nn.BCEWithLogitsLoss() 
@@ -74,7 +93,8 @@ def main():
     if config.LOAD_MODEL:
         load_checkpoint(torch.load(config.CHECKPOINT_FILE), model)
 
-    print(f"Starte Training auf {config.DEVICE} für {config.NUM_EPOCHS} Epochen...")
+    print(f"Starte Training auf {config.DEVICE} für {config.NUM_EPOCHS} Epochen \n"
+          f"mit einer Lernrate von {config.LEARNING_RATE} und einer Batch-Größe von {config.BATCH_SIZE}.")
     
     scaler = None 
 

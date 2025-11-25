@@ -3,11 +3,11 @@ import torch
 
 # Hyperparameter
 LEARNING_RATE = 1e-4
-DEVICE =  torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 BATCH_SIZE = 16
 NUM_EPOCHS = 10  
-NUM_WORKERS = 0
-PIN_MEMORY = False
+NUM_WORKERS = 4
+PIN_MEMORY = True
 LOAD_MODEL = False 
 
 # Modell-Einstellungen
