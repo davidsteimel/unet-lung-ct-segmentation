@@ -6,7 +6,7 @@ LEARNING_RATE = 1e-4
 DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 BATCH_SIZE = 16
 NUM_EPOCHS = 10  
-NUM_WORKERS = 4
+NUM_WORKERS = 8
 PIN_MEMORY = True
 LOAD_MODEL = False 
 

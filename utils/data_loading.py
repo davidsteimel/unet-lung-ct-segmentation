@@ -6,7 +6,7 @@ from pathlib import Path
 import torchvision.transforms as transforms 
 
 class BasicDataset(Dataset):
-    def __init__(self, images_dir, masks_dir, target_size=(160, 160)):
+    def __init__(self, images_dir, masks_dir, target_size=(512, 512)):
         self.images_dir = Path(images_dir)
         self.masks_dir = Path(masks_dir)
         #self.ids = os.listdir(images_dir)
