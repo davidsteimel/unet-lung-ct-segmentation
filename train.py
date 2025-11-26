@@ -58,6 +58,7 @@ def main():
     config.LOAD_MODEL = args.load
 
     model = UNet(n_channels=config.IN_CHANNELS, n_classes=config.NUM_CLASSES).to(config.DEVICE)
+
     
     loss_fn = nn.BCEWithLogitsLoss() 
     #optimizer = optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
@@ -95,6 +96,12 @@ def main():
 
     print(f"Starte Training auf {config.DEVICE} für {config.NUM_EPOCHS} Epochen \n"
           f"mit einer Lernrate von {config.LEARNING_RATE} und einer Batch-Größe von {config.BATCH_SIZE}.")
+    
+    if torch.cuda.is_available():
+        print(f"GPU: {torch.cuda.get_device_name(0)}")
+        print(f"GPU-Speicher reserviert: {torch.cuda.memory_reserved(0)/1024**3:.1f} GB")
+    else:
+        print("Training auf CPU")
     
     scaler = None 
 
