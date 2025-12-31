@@ -8,6 +8,8 @@ import numpy as np
 
 IMAGE_DIR = 'data/images/images/' 
 MASK_DIR = 'data/masks/masks/'
+OUTPUT_DIR = 'data_processed/'
+TARGET_SIZE = (512, 512)
 
 all_image_files = glob.glob(os.path.join(IMAGE_DIR, '*.jpg'))
 all_mask_files = glob.glob(os.path.join(MASK_DIR, '*.jpg'))
@@ -20,15 +22,27 @@ for image_path in all_image_files:
     patient_ids.add(patient_id)
 
 patient_ids = list(patient_ids)
+random.seed(42)
 random.shuffle(patient_ids)
 
 num_total = len(patient_ids)
-tarin_split_end = int(num_total * 0.7)
+train_split_end = int(num_total * 0.7)
 val_split_end = int(num_total * 0.8)
 
-train_ids = set(patient_ids[:tarin_split_end])
-val_ids = set(patient_ids[tarin_split_end:val_split_end])
+train_ids = set(patient_ids[:train_split_end])
+val_ids = set(patient_ids[train_split_end:val_split_end])
 test_ids = set(patient_ids[val_split_end:])
+
+print(f'Total: {num_total} | Train: {len(train_ids)} | Val: {len(val_ids)} | Test: {len(test_ids)}')
+
+splits = ['train', 'val', 'test']
+types = ['image', 'mask']
+
+for split in splits:
+    for type_ in types:
+        path = os.path.join('data_processed', split, type_)
+        os.makedirs(path, exist_ok=True)
+        print(f"Ordner erstellt/geprüft: {path}")
 
 print(f'Total patients: {num_total}')
 print(f'Training patients: {len(train_ids)}')
@@ -43,43 +57,49 @@ for image_path in all_image_files:
     try:
         slice_part = base_name.rsplit('_', 1)[1] 
     except IndexError:
-        print(f"Fehlerhaftes Format übersprungen: {base_name}")
+        print(f"Invalid format skipped: {base_name}")
         continue
 
     mask_base_name = f"{patient_id}_mask_{slice_part}" 
     mask_path = os.path.join(MASK_DIR, mask_base_name)
 
     if not os.path.exists(mask_path):
-        print(f"Warnung: Maske nicht gefunden für {base_name}")
+        print(f"Warning: Mask not found for {base_name}")
         continue
 
     if patient_id in train_ids:
-            target_img_dir = 'data_processed/train/image/'
-            target_mask_dir = 'data_processed/train/mask/'
+        split_dir = 'train'
     elif patient_id in val_ids:
-            target_img_dir = 'data_processed/val/image/'
-            target_mask_dir = 'data_processed/val/mask/'
+        split_dir = 'val'
     elif patient_id in test_ids:
-            target_img_dir = 'data_processed/test/image/'
-            target_mask_dir = 'data_processed/test/mask/'
+        split_dir = 'test'
     else:
         continue
 
-    shutil.copy(image_path, os.path.join(target_img_dir, base_name))
+    # load image as grayscale     
+    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    if img is None: continue
+
+    if img.shape[:2] == TARGET_SIZE:
+        img_resized = img
+    else:
+        img_resized = cv2.resize(img, TARGET_SIZE, interpolation=cv2.INTER_CUBIC)
+        # img_resized = cv2.resize(img, TARGET_SIZE, interpolation=cv2.INTER_AREA)
 
     multiclass_mask_color = cv2.imread(mask_path, cv2.IMREAD_COLOR) 
     
-    if multiclass_mask_color is None:
-        print(f"Warnung: Maske konnte nicht geladen werden {mask_path}")
-        continue
-        
-    LUNGEN_FARBE_BGR = np.array([254, 0, 0]) 
+    if multiclass_mask_color is None: continue
 
     lower_blue = np.array([200, 0, 0])
     upper_blue = np.array([255, 50, 50])
-    
     binary_mask = cv2.inRange(multiclass_mask_color, lower_blue, upper_blue)
-    
-    cv2.imwrite(os.path.join(target_mask_dir, base_name), binary_mask)
 
-print("Verarbeitung abgeschlossen!")
+    if binary_mask.shape[:2] == TARGET_SIZE:
+        mask_resized = binary_mask
+    else:
+        mask_resized = cv2.resize(binary_mask, TARGET_SIZE, interpolation=cv2.INTER_NEAREST)
+
+    cv2.imwrite(os.path.join(OUTPUT_DIR, split_dir, 'image', base_name), img_resized)
+    cv2.imwrite(os.path.join(OUTPUT_DIR, split_dir, 'mask', base_name), mask_resized)
+
+print("Processing completed!")

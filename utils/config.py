@@ -1,20 +1,20 @@
 import os
 import torch
 
-# Hyperparameter
+# hyperparameter
 LEARNING_RATE = 1e-4
 DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 BATCH_SIZE = 16
 NUM_EPOCHS = 10  
-NUM_WORKERS = 4 # Anzahl der Subprozesse zum Laden der Daten
-PIN_MEMORY = True # Ob die Daten im Pin-Speicher gehalten werden sollen
+NUM_WORKERS = 4 # Number of subprocesses for data loading
+PIN_MEMORY = True # Whether to keep data in pinned memory
 LOAD_MODEL = False 
 
-# Modell-Einstellungen
+# Model settings
 IN_CHANNELS = 1
 NUM_CLASSES = 1 
 
-# Pfade
+# Paths
 BASE_DIR = "data_processed"
 
 TRAIN_IMG_DIR = os.path.join(BASE_DIR, "train", "image")

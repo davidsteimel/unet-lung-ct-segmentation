@@ -8,7 +8,7 @@ def test_unet_output():
     dummy_input = torch.randn(1, 1, 160, 160)
     output = model(dummy_input)
     assert output.shape == dummy_input.shape, \
-    f"Fehler: Input-Größe {dummy_input.shape} passt nicht zu Output-Größe {output.shape} - Größe wurde verändert"
+    f"Error: Input size {dummy_input.shape} does not match output size {output.shape} - size was changed"
 
 
 def test_unet_odd_input_size():
@@ -16,4 +16,4 @@ def test_unet_odd_input_size():
     dummy_input = torch.randn(1, 1, 161, 161) 
     output = model(dummy_input)
     assert output.shape == dummy_input.shape, \
-    f"Padding-Fehler: Input-Größe {dummy_input.shape} passt nicht zu Output-Größe {output.shape}"
+    f"Padding error: Input size {dummy_input.shape} does not match output size {output.shape}"

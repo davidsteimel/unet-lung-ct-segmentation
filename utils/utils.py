@@ -5,11 +5,11 @@ from torchvision.utils import make_grid
 import torchvision.utils as vutils
 
 def save_checkpoint(state, filename="checkpoint.pth."):
-    print("=> Speichere Checkpoint")
+    print("=> Save Checkpoint")
     torch.save(state, filename)
 
 def load_checkpoint(checkpoint, model):
-    print("=> Lade Checkpoint")
+    print("=> Load Checkpoint")
     model.load_state_dict(checkpoint["state_dict"])
 
 def check_accuracy(loader, model, device="cpu"):
@@ -33,7 +33,7 @@ def check_accuracy(loader, model, device="cpu"):
             
             dice_score += dice_coeff(preds, true_masks, reduce_batch_first=False)
 
-    print(f"Genauigkeit: {num_correct/num_pixels*100:.2f}%")
+    print(f"Accuracy: {num_correct/num_pixels*100:.2f}%")
     print(f"Dice Score: {dice_score/len(loader)}")
     
     model.train()
@@ -68,21 +68,21 @@ def save_predictions_as_imgs(
                 true_single = true_masks[i] # [1, H, W]
                 pred_single = preds[i]      # [1, H, W]
 
-                # In RGB umwandeln zur besseren Visualisierung
+                # Convert to RGB for better visualization
                 img_rgb = img_single.repeat(3, 1, 1)
                 true_rgb = true_single.repeat(3, 1, 1)
                 pred_rgb = pred_single.repeat(3, 1, 1)
 
-                # Overlay erstellen
+                # Create overlay
                 overlay = img_rgb * 0.6 
                 
                 tp = (pred_single == 1) & (true_single == 1)
                 fp = (pred_single == 1) & (true_single == 0)
                 fn = (pred_single == 0) & (true_single == 1)
 
-                overlay[1, :, :] += tp.squeeze() * 0.4  # Grün
-                overlay[0, :, :] += fp.squeeze() * 0.8  # Rot
-                overlay[2, :, :] += fn.squeeze() * 0.8  # Blau
+                overlay[1, :, :] += tp.squeeze() * 0.4  # Green
+                overlay[0, :, :] += fp.squeeze() * 0.8  # Red
+                overlay[2, :, :] += fn.squeeze() * 0.8  # Blue
 
                 overlay = torch.clamp(overlay, 0, 1)
                 combined = torch.cat((img_rgb, true_rgb, pred_rgb, overlay), dim=2)
@@ -93,5 +93,5 @@ def save_predictions_as_imgs(
     save_path = os.path.join(folder, "prediction_grid.png")
     vutils.save_image(grid, f"{folder}/prediction_epoch_{epoche}.png")
     
-    print(f"Visualisierung gespeichert: {save_path}")
+    print(f"Visualization saved: {save_path}")
     model.train()

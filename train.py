@@ -1,12 +1,10 @@
 import torch
-import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
+from utils.dice_score import TopKDiceLoss
 from tqdm import tqdm
 import argparse
-
 import utils.config as config
-from utils.dice_score import dice_loss
 from unet.unet_model import UNet
 from utils.data_loading import BasicDataset
 from utils.utils import (
@@ -24,11 +22,13 @@ def train_fn(loader, model, optimizer, loss_fn):
         targets = data['mask'].to(config.DEVICE)
 
         #Forward Pass
-        targets = targets.unsqueeze(1).float()
+        if targets.dim() == 3:
+            targets = targets.unsqueeze(1).float()
+        else:
+            targets = targets.float()
+        
         predictions = model(data_img)
-        bce = loss_fn(predictions, targets) #Binary Cross-Entropy, misst Pixel-weise Wahrscheinlichkeiten 
-        dice = dice_loss(torch.sigmoid(predictions).squeeze(1), targets.squeeze(1), multiclass=False)
-        loss = bce + dice
+        loss = loss_fn(predictions, targets)
 
         # Backward Pass
         optimizer.zero_grad() 
@@ -42,13 +42,13 @@ def main():
     parser = argparse.ArgumentParser(description='UNet Training Script')
     
     parser.add_argument('--epochs', '-e', type=int, default=config.NUM_EPOCHS,
-                        help='Anzahl der Trainings-Epochen')
+                        help='Num of training epochs')
     parser.add_argument('--batch-size', '-b', type=int, default=config.BATCH_SIZE,
-                        help='Batch Größe für das Training')
+                        help='Batch size for training')
     parser.add_argument('--lr', '--learning-rate', type=float, default=config.LEARNING_RATE,
-                        help='Lernrate für den Optimierer')
+                        help='Learning rate for the optimizer')
     parser.add_argument('--load', '-l', action='store_true', default=config.LOAD_MODEL,
-                        help='Checkpoint laden, um Training fortzusetzen')
+                        help='Load checkpoint to resume training')
     
     args = parser.parse_args()
 
@@ -59,10 +59,15 @@ def main():
 
     model = UNet(n_channels=config.IN_CHANNELS, n_classes=config.NUM_CLASSES).to(config.DEVICE)
 
-    
-    loss_fn = nn.BCEWithLogitsLoss() 
-    #optimizer = optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
-    optimizer = optim.RMSprop(model.parameters(), lr=config.LEARNING_RATE, weight_decay=1e-8, momentum=0.9)
+    loss_fn = TopKDiceLoss(k=10, smooth=1e-5) 
+
+    optimizer = optim.AdamW(
+        model.parameters(),
+        lr=config.LEARNING_RATE,
+        weight_decay=1e-4, 
+        betas = (0.9, 0.999)
+    )
+
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=2)
 
     train_ds = BasicDataset(
@@ -94,19 +99,19 @@ def main():
     if config.LOAD_MODEL:
         load_checkpoint(torch.load(config.CHECKPOINT_FILE), model)
 
-    print(f"Starte Training auf {config.DEVICE} für {config.NUM_EPOCHS} Epochen \n"
-          f"mit einer Lernrate von {config.LEARNING_RATE} und einer Batch-Größe von {config.BATCH_SIZE}.")
+    print(f"Starting training on {config.DEVICE} for {config.NUM_EPOCHS} epochs \n"
+          f"with a learning rate of {config.LEARNING_RATE} and a batch size of {config.BATCH_SIZE}.")
     
     if torch.cuda.is_available():
         print(f"GPU: {torch.cuda.get_device_name(0)}")
-        print(f"GPU-Speicher reserviert: {torch.cuda.memory_reserved(0)/1024**3:.1f} GB")
+        print(f"GPU memory reserved: {torch.cuda.memory_reserved(0)/1024**3:.1f} GB")
     else:
-        print("Training auf CPU")
+        print("Training on CPU")
     
     scaler = None 
 
     for epoch in range(config.NUM_EPOCHS):
-        print(f"\nEpoche {epoch+1}/{config.NUM_EPOCHS}")
+        print(f"\nEpoch {epoch+1}/{config.NUM_EPOCHS}")
         
         train_fn(train_loader, model, optimizer, loss_fn)
 

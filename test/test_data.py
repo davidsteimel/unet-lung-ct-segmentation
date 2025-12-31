@@ -16,17 +16,17 @@ def test_no_data_leakage():
     val_files = glob.glob(os.path.join(VAL_PATH, '*.jpg'))
     test_files = glob.glob(os.path.join(TEST_PATH, '*.jpg')) 
 
-    assert len(train_files) > 0, "Trainings Ordner ist leer"
-    assert len(val_files) > 0, "Validation Ordner ist leer"
-    assert len(test_files) > 0, "Test Ordner ist leer"
+    assert len(train_files) > 0, "Training folder is empty"
+    assert len(val_files) > 0, "Validation folder is empty"
+    assert len(test_files) > 0, "Test folder is empty"
 
     train_ids = set([get_patient_id(f) for f in train_files])
     val_ids = set([get_patient_id(f) for f in val_files])
     test_ids = set([get_patient_id(f) for f in test_files])
 
     train_val_overlap = train_ids.intersection(val_ids)
-    assert len(train_val_overlap) == 0, f"Fehler: ID Überschneidung {train_val_overlap}"
+    assert len(train_val_overlap) == 0, f"Error: ID overlap {train_val_overlap}"
     train_test_overlap = train_ids.intersection(test_ids)
-    assert len(train_test_overlap) == 0, f"Fehler: ID Überschneidung {train_test_overlap}"
+    assert len(train_test_overlap) == 0, f"Error: ID overlap {train_test_overlap}"
     val_test_overlap = val_ids.intersection(test_ids)
-    assert len(val_test_overlap) == 0, f"Fehler: ID Überschneidung {val_test_overlap}"
+    assert len(val_test_overlap) == 0, f"Error: ID overlap {val_test_overlap}"
