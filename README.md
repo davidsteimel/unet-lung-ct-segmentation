@@ -22,15 +22,6 @@ cd unet-lung-ct-segmentation
 pip install -r requirements.txt
 ```
 
-## Usage
-
-```python
-from model import UNet
-model = UNet()
-# Load and preprocess CT scan
-segmentation = model.predict(ct_image)
-```
-
 ## Dataset
 
 Specify the dataset used (e.g., LUNA16, LIDC-IDRI, or custom dataset).
@@ -38,7 +29,7 @@ Specify the dataset used (e.g., LUNA16, LIDC-IDRI, or custom dataset).
 ## Training
 
 ```bash
-python train.py --epochs 100 --batch-size 32
+python train.py --epochs 100 --batch-size 32 --learning-rate 0.001 
 ```
 
 ## Results
