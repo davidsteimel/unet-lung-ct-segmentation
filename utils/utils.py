@@ -69,9 +69,9 @@ def save_predictions_as_imgs(
                 pred_single = preds[i]      # [1, H, W]
 
                 # Convert to RGB for better visualization
-                img_rgb = img_single.repeat(3, 1, 1)
-                true_rgb = true_single.repeat(3, 1, 1)
-                pred_rgb = pred_single.repeat(3, 1, 1)
+                img_rgb = img_single.repeat(3, 1, 1).float()
+                true_rgb = true_single.repeat(3, 1, 1).float()
+                pred_rgb = pred_single.repeat(3, 1, 1).float()
 
                 # Create overlay
                 overlay = img_rgb * 0.6 
@@ -80,9 +80,9 @@ def save_predictions_as_imgs(
                 fp = (pred_single == 1) & (true_single == 0)
                 fn = (pred_single == 0) & (true_single == 1)
 
-                overlay[1, :, :] += tp.squeeze() * 0.4  # Green
-                overlay[0, :, :] += fp.squeeze() * 0.8  # Red
-                overlay[2, :, :] += fn.squeeze() * 0.8  # Blue
+                overlay[1, :, :] += tp.squeeze().float() * 0.4  # Green
+                overlay[0, :, :] += fp.squeeze().float() * 0.8  # Red
+                overlay[2, :, :] += fn.squeeze().float() * 0.8  # Blue
 
                 overlay = torch.clamp(overlay, 0, 1)
                 combined = torch.cat((img_rgb, true_rgb, pred_rgb, overlay), dim=2)
