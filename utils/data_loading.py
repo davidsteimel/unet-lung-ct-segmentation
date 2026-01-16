@@ -34,8 +34,9 @@ class BasicDataset(Dataset):
         mask = Image.open(mask_path).convert("L")
       
         image_tensor = self.transform(image)
-        mask_tensor = self.mask_transform(mask)
+        image_tensor = (image_tensor - 0.5) / 0.5
         
+        mask_tensor = self.mask_transform(mask)
         # mask should be binary
         mask_tensor = (mask_tensor > 0.5).float()
         

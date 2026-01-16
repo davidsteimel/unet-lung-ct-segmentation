@@ -3,8 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class DoubleConv(nn.Module):
-    """(Convolution => [BatchNorm] => ReLU) * 2"""
-
     def __init__(self, in_channels, out_channels):
         super(DoubleConv, self).__init__()
         self.double_conv = nn.Sequential(
@@ -19,8 +17,6 @@ class DoubleConv(nn.Module):
         return self.double_conv(x)
     
 class Down(nn.Module):
-    """Downscaling mit MaxPool dann DoubleConv"""
-
     def __init__(self, in_channels, out_channels):
         super(Down, self).__init__()
         self.pool = nn.MaxPool2d(2)

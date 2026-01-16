@@ -4,22 +4,14 @@ from utils.dice_score import dice_coeff
 from torchvision.utils import make_grid
 import torchvision.utils as vutils
 
-def save_checkpoint(state, filename="checkpoint.pth."):
-    print("=> Save Checkpoint")
-    torch.save(state, filename)
-
-def load_checkpoint(checkpoint, model):
-    print("=> Load Checkpoint")
-    model.load_state_dict(checkpoint["state_dict"])
-
+@torch.no_grad()
 def check_accuracy(loader, model, device="cpu"):
     num_correct = 0
     num_pixels = 0
     dice_score = 0
     model.eval()
 
-    with torch.no_grad():
-        for batch in loader:
+    for batch in loader:
             x = batch['image'].to(device)
             true_masks = batch['mask'].to(device)
 
@@ -40,16 +32,14 @@ def check_accuracy(loader, model, device="cpu"):
     return dice_score / len(loader)
 
 
-
+@torch.no_grad()
 def save_predictions_as_imgs(
     loader, model, folder="saved_images/", device="cpu", num_examples=8, epoche = 0):
     model.eval()
     os.makedirs(folder, exist_ok=True)
-    
     images_to_save = []
     
-    with torch.no_grad():
-        for idx, batch in enumerate(loader):
+    for idx, batch in enumerate(loader):
             if idx > 0: 
                 break
             
@@ -65,15 +55,17 @@ def save_predictions_as_imgs(
             for i in range(min(num_examples, imgs.shape[0])):
                 
                 img_single = imgs[i]        # [1, H, W]
+                img_disp = img_single * 0.5 + 0.5
+                img_disp = torch.clamp(img_disp, 0, 1)
+                
                 true_single = true_masks[i] # [1, H, W]
                 pred_single = preds[i]      # [1, H, W]
 
                 # Convert to RGB for better visualization
-                img_rgb = img_single.repeat(3, 1, 1).float()
+                img_rgb = img_disp.repeat(3, 1, 1).float()
                 true_rgb = true_single.repeat(3, 1, 1).float()
                 pred_rgb = pred_single.repeat(3, 1, 1).float()
 
-                # Create overlay
                 overlay = img_rgb * 0.6 
                 
                 tp = (pred_single == 1) & (true_single == 1)

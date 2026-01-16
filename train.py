@@ -1,4 +1,7 @@
 import torch
+import csv
+import os
+import time
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from utils.dice_score import TopKDiceLoss
@@ -8,14 +11,13 @@ import utils.config as config
 from unet.unet_model import UNet
 from utils.data_loading import BasicDataset
 from utils.utils import (
-    load_checkpoint,
-    save_checkpoint,
     check_accuracy,
     save_predictions_as_imgs,
 )
 
 def train_fn(loader, model, optimizer, loss_fn):
     loop = tqdm(loader)
+    epoch_loss = 0
     
     for batch_idx, data in enumerate(loop):
         data_img = data['image'].to(config.DEVICE)
@@ -36,7 +38,10 @@ def train_fn(loader, model, optimizer, loss_fn):
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)      
         optimizer.step()      
 
+        epoch_loss += loss.item()
         loop.set_postfix(loss=loss.item())
+
+    return epoch_loss / len(loader)
 
 def main():
     parser = argparse.ArgumentParser(description='UNet Training Script')
@@ -96,9 +101,6 @@ def main():
         shuffle=False,
     )
 
-    if config.LOAD_MODEL:
-        load_checkpoint(torch.load(config.CHECKPOINT_FILE), model)
-
     print(f"Starting training on {config.DEVICE} for {config.NUM_EPOCHS} epochs \n"
           f"with a learning rate of {config.LEARNING_RATE} and a batch size of {config.BATCH_SIZE}.")
     
@@ -110,20 +112,39 @@ def main():
     
     scaler = None 
 
+    log_file = f"training_log_{config.TARGET_SIZE[1]}_unet.csv"
+    if not os.path.isfile(log_file):
+        with open(log_file, mode="w", newline="") as f:
+            writer = csv.writer(f, delimiter=";")
+            writer.writerow([
+                "Epoch",
+                "Resolution",
+                "Train_Loss",
+                "Val_Dice",
+                "Duration_Sec"
+            ])
+
     for epoch in range(config.NUM_EPOCHS):
         print(f"\nEpoch {epoch+1}/{config.NUM_EPOCHS}")
-        
-        train_fn(train_loader, model, optimizer, loss_fn)
+        start_time = time.time()
 
-        checkpoint = {
-            "state_dict": model.state_dict(),
-            "optimizer": optimizer.state_dict(),
-        }
-        save_checkpoint(checkpoint, filename=config.CHECKPOINT_FILE)
+        avg_train_loss = train_fn(
+        train_loader, model, optimizer, loss_fn)
 
         val_dice_score = check_accuracy(val_loader, model, device=config.DEVICE)
 
+        duration = time.time() - start_time
         scheduler.step(val_dice_score)
+
+        with open(log_file, mode="a", newline="") as f:
+            writer = csv.writer(f, delimiter=";")
+            writer.writerow([
+                int(epoch),
+                int(config.TARGET_SIZE[1]),
+                float(avg_train_loss),
+                float(val_dice_score),
+                float(duration)
+            ])
 
         save_predictions_as_imgs(
             val_loader, model, folder="saved_images/", device=config.DEVICE, num_examples=8, epoche=epoch
