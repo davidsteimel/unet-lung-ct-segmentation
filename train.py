@@ -119,6 +119,9 @@ def main():
             writer.writerow([
                 "Epoch",
                 "Resolution",
+                "Learning_Rate",
+                "Batch_Size",
+                "Num_Train_Samples",
                 "Train_Loss",
                 "Val_Dice",
                 "Duration_Sec"
@@ -141,9 +144,12 @@ def main():
             writer.writerow([
                 int(epoch),
                 int(config.TARGET_SIZE[1]),
-                float(avg_train_loss),
-                float(val_dice_score),
-                float(duration)
+                config.LEARNING_RATE,
+                config.BATCH_SIZE,
+                len(train_loader.dataset),
+                round(float(avg_train_loss)),
+                round(float(val_dice_score)),
+                round(duration)
             ])
 
         save_predictions_as_imgs(
