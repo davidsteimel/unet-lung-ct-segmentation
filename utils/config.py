@@ -9,7 +9,7 @@ NUM_EPOCHS = 10
 NUM_WORKERS = 4 # Number of subprocesses for data loading
 PIN_MEMORY = True # Whether to keep data in pinned memory
 LOAD_MODEL = False 
-TARGET_SIZE = (512, 512)
+TARGET_SIZE = (256, 256)
 
 # Model settings
 IN_CHANNELS = 1
