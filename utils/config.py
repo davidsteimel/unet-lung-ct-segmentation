@@ -19,6 +19,7 @@ NUM_CLASSES = 1
 BASE_DIR = "data_processed"
 IMAGE_DIR = 'data/images/images/' 
 MASK_DIR = 'data/masks/masks/'
+LOG_DIR = "results_256"
 
 TRAIN_IMG_DIR = os.path.join(BASE_DIR, TARGET_SIZE[1], "train", "image")
 TRAIN_MASK_DIR = os.path.join(BASE_DIR, TARGET_SIZE[1], "train", "mask")

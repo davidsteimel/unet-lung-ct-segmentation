@@ -13,9 +13,12 @@ from utils.data_loading import BasicDataset
 from utils.utils import (
     check_accuracy,
     save_predictions_as_imgs,
+    evaluate
 )
+from perun import monitor
 
 def train_fn(loader, model, optimizer, loss_fn):
+    model.train()
     loop = tqdm(loader)
     epoch_loss = 0
     
@@ -63,7 +66,6 @@ def main():
     config.LOAD_MODEL = args.load
 
     model = UNet(n_channels=config.IN_CHANNELS, n_classes=config.NUM_CLASSES).to(config.DEVICE)
-
     loss_fn = TopKDiceLoss(k=10, smooth=1e-5) 
 
     optimizer = optim.AdamW(
@@ -104,40 +106,53 @@ def main():
     print(f"Starting training on {config.DEVICE} for {config.NUM_EPOCHS} epochs \n"
           f"with a learning rate of {config.LEARNING_RATE} and a batch size of {config.BATCH_SIZE}.")
     
-    if torch.cuda.is_available():
-        print(f"GPU: {torch.cuda.get_device_name(0)}")
-        print(f"GPU memory reserved: {torch.cuda.memory_reserved(0)/1024**3:.1f} GB")
-    else:
-        print("Training on CPU")
-    
-    scaler = None 
-
+    os.makedirs(config.LOG_DIR, exist_ok=True)
     log_file = f"training_log_{config.TARGET_SIZE[1]}_unet.csv"
+    log_path = os.path.join(config.LOG_DIR, log_file)
     if not os.path.isfile(log_file):
         with open(log_file, mode="w", newline="") as f:
             writer = csv.writer(f, delimiter=";")
             writer.writerow([
-                "Epoch",
-                "Resolution",
-                "Learning_Rate",
-                "Batch_Size",
-                "Num_Train_Samples",
-                "Train_Loss",
-                "Val_Dice",
-                "Duration_Sec"
-            ])
+                    'Epoch',
+                    'Resolution',
+                    'Learning_Rate',
+                    'Batch_Size', 
+                    'Num_Train_Samples',
+                    'Num_Val_Samples',
+                    'Train_Loss', 
+                    'Val_Loss',
+                    'Train_Dice',
+                    'Val_Dice', 
+                    'Duration_Sec',
+                    'Train_TP',
+                    'Train_FP',
+                    'Train_TN',
+                    'Train_FN',
+                    'Train_Precision',
+                    'Train_Recall',
+                    'Val_TP',
+                    'Val_FP',
+                    'Val_TN',
+                    'Val_FN',
+                    'Val_Precision',
+                    'Val_Recall'
+                ])
 
     for epoch in range(config.NUM_EPOCHS):
         print(f"\nEpoch {epoch+1}/{config.NUM_EPOCHS}")
         start_time = time.time()
 
-        avg_train_loss = train_fn(
-        train_loader, model, optimizer, loss_fn)
+        train_loss = train_fn(train_loader, model, optimizer, loss_fn)
 
-        val_dice_score = check_accuracy(val_loader, model, device=config.DEVICE)
+        val_metrics = evaluate(val_loader, model, loss_fn, device=config.DEVICE)
+        train_metrics = evaluate(train_loader, model, loss_fn, device=config.DEVICE)
 
+        scheduler.step(val_metrics['Dice'])
         duration = time.time() - start_time
-        scheduler.step(val_dice_score)
+
+        train_dice = train_metrics["Dice"]
+        val_loss = val_metrics["Loss"]
+        val_dice = val_metrics["Dice"]
 
         with open(log_file, mode="a", newline="") as f:
             writer = csv.writer(f, delimiter=";")
@@ -147,14 +162,29 @@ def main():
                 config.LEARNING_RATE,
                 config.BATCH_SIZE,
                 len(train_loader.dataset),
-                round(float(avg_train_loss)),
-                round(float(val_dice_score)),
-                round(duration)
+                len(val_loader.dataset),
+                round(float(train_loss), 4),
+                round(float(val_loss), 4),
+                round(float(train_dice), 4),
+                round(float(val_dice), 4),
+                round(duration, 2),
+                round(float(train_metrics['TP']), 4),
+                round(float(train_metrics['FP']), 4),
+                round(float(train_metrics['TN']), 4),
+                round(float(train_metrics['FN']), 4),
+                round(float(train_metrics['Precision']), 4),
+                round(float(train_metrics['Recall']), 4),
+                round(float(val_metrics['TP']), 4),
+                round(float(val_metrics['FP']), 4),
+                round(float(val_metrics['TN']), 4),
+                round(float(val_metrics['FN']), 4),
+                round(float(val_metrics['Precision']), 4),
+                round(float(val_metrics['Recall']), 4)
             ])
 
-        save_predictions_as_imgs(
-            val_loader, model, folder="saved_images/", device=config.DEVICE, num_examples=8, epoche=epoch
-        )
+        #save_predictions_as_imgs(
+        #    val_loader, model, folder="saved_images/", device=config.DEVICE, num_examples=8, epoche=epoch
+        #)
 
 if __name__ == "__main__":
     main()
