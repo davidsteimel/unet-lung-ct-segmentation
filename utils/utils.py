@@ -102,9 +102,9 @@ def evaluate(loader, model, loss_fn, device, threshold=0.5):
     TP = FP = FN = TN = 0
     steps = 0
 
-    for images, true_masks in loader:
-        images = images.to(device)
-        true_masks = true_masks.to(device) 
+    for batch in loader:
+        images = batch['image'].to(device)
+        true_masks = batch['mask'].to(device)
 
         if true_masks.dim() == 3:
             true_masks = true_masks.unsqueeze(1).float()
