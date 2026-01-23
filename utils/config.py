@@ -21,9 +21,9 @@ IMAGE_DIR = 'data/images/images/'
 MASK_DIR = 'data/masks/masks/'
 LOG_DIR = "results_256"
 
-TRAIN_IMG_DIR = os.path.join(BASE_DIR, TARGET_SIZE[1], "train", "image")
-TRAIN_MASK_DIR = os.path.join(BASE_DIR, TARGET_SIZE[1], "train", "mask")
-VAL_IMG_DIR = os.path.join(BASE_DIR, TARGET_SIZE[1], "val", "image")
-VAL_MASK_DIR = os.path.join(BASE_DIR, TARGET_SIZE[1], "val", "mask")
+TRAIN_IMG_DIR = os.path.join(BASE_DIR, str(TARGET_SIZE[1]), "train", "image")
+TRAIN_MASK_DIR = os.path.join(BASE_DIR, str(TARGET_SIZE[1]), "train", "mask")
+VAL_IMG_DIR = os.path.join(BASE_DIR, str(TARGET_SIZE[1]), "val", "image")
+VAL_MASK_DIR = os.path.join(BASE_DIR, str(TARGET_SIZE[1]), "val", "mask")
 
 CHECKPOINT_FILE = "my_checkpoint.pth.tar"
