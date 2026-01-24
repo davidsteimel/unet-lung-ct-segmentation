@@ -107,10 +107,10 @@ def main():
           f"with a learning rate of {config.LEARNING_RATE} and a batch size of {config.BATCH_SIZE}.")
     
     os.makedirs(config.LOG_DIR, exist_ok=True)
-    log_file = f"training_log_{config.TARGET_SIZE[1]}_unet.csv"
+    log_file = f"log_{config.TARGET_SIZE[1]}_{config.NUM_EPOCHS}_unet.csv"
     log_path = os.path.join(config.LOG_DIR, log_file)
-    if not os.path.isfile(log_file):
-        with open(log_file, mode="w", newline="") as f:
+    if not os.path.isfile(log_path):
+        with open(log_path, mode="w", newline="") as f:
             writer = csv.writer(f, delimiter=";")
             writer.writerow([
                     'Epoch',
