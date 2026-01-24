@@ -33,10 +33,11 @@ print(f'Total: {num_total} | Train: {len(train_ids)} | Val: {len(val_ids)} | Tes
 
 splits = ['train', 'val', 'test']
 types = ['image', 'mask']
+resolution = str(config.TARGET_SIZE[1])
 
 for split in splits:
     for type_ in types:
-        path = os.path.join('data_processed', split, type_)
+        path = os.path.join('data_processed', resolution, split, type_)
         os.makedirs(path, exist_ok=True)
         print(f"Created/checked directory: {path}")
 
@@ -94,7 +95,7 @@ for image_path in all_image_files:
     else:
         mask_resized = cv2.resize(binary_mask, config.TARGET_SIZE, interpolation=cv2.INTER_NEAREST)
 
-    cv2.imwrite(os.path.join(config.BASE_DIR, config.TARGET_SIZE[1], split_dir, 'image', base_name), img_resized)
-    cv2.imwrite(os.path.join(config.BASE_DIR, config.TARGET_SIZE[1], split_dir, 'mask', base_name), mask_resized)
+    cv2.imwrite(os.path.join(config.BASE_DIR, resolution, split_dir, 'image', base_name), img_resized)
+    cv2.imwrite(os.path.join(config.BASE_DIR, resolution, split_dir, 'mask', base_name), mask_resized)
 
 print("Processing completed!")
