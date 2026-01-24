@@ -94,7 +94,8 @@ def save_predictions_as_imgs(
 def evaluate(loader, model, loss_fn, device, threshold=0.5):
     model.eval()
 
-    epoch_loss = 0.0
+    running_loss = 0.0
+    total_samples = 0
     num_correct = 0
     num_pixels = 0
     dice_score = 0.0
@@ -112,9 +113,10 @@ def evaluate(loader, model, loss_fn, device, threshold=0.5):
             true_masks = true_masks.float()
 
         logits = model(images) 
-
         loss = loss_fn(logits, true_masks)
-        epoch_loss += loss.item()
+        batch_size = images.size(0)
+        running_loss += loss.item() * batch_size
+        total_samples += batch_size
 
         # Probabilities
         probs = torch.sigmoid(logits)
@@ -138,7 +140,7 @@ def evaluate(loader, model, loss_fn, device, threshold=0.5):
         )
         steps += 1
 
-    avg_loss = epoch_loss / len(loader)
+    avg_loss = running_loss / total_samples
     acc = num_correct / num_pixels * 100 if num_pixels > 0 else 0
     avg_dice = dice_score / len(loader)
 

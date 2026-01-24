@@ -20,7 +20,8 @@ from perun import monitor
 def train_fn(loader, model, optimizer, loss_fn):
     model.train()
     loop = tqdm(loader)
-    epoch_loss = 0
+    running_loss = 0.0
+    total_samples = 0
     
     for batch_idx, data in enumerate(loop):
         data_img = data['image'].to(config.DEVICE)
@@ -41,10 +42,13 @@ def train_fn(loader, model, optimizer, loss_fn):
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)      
         optimizer.step()      
 
-        epoch_loss += loss.item()
+        batch_size = data_img.size(0)
+        running_loss += loss.item() * batch_size
+        total_samples += batch_size
+        
         loop.set_postfix(loss=loss.item())
 
-    return epoch_loss / len(loader)
+    return running_loss / total_samples
 
 def main():
     parser = argparse.ArgumentParser(description='UNet Training Script')
@@ -88,6 +92,7 @@ def main():
         num_workers=config.NUM_WORKERS,
         pin_memory=config.PIN_MEMORY,
         shuffle=True,
+        drop_last=True,
     )
 
     val_ds = BasicDataset(
@@ -101,6 +106,7 @@ def main():
         num_workers=config.NUM_WORKERS,
         pin_memory=config.PIN_MEMORY,
         shuffle=False,
+        drop_last=False,
     )
 
     print(f"Starting training on {config.DEVICE} for {config.NUM_EPOCHS} epochs \n"
