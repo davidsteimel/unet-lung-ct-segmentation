@@ -16,12 +16,12 @@ class BasicDataset(Dataset):
         self.ids = [file for file in os.listdir(images_dir) if not file.startswith('.')]
         
         self.transform = transforms.Compose([
-            transforms.Resize(target_size, interpolation=transforms.InterpolationMode.BICUBIC),
+            #transforms.Resize(target_size, interpolation=transforms.InterpolationMode.BICUBIC),
             transforms.ToTensor() 
         ])
         
         self.mask_transform = transforms.Compose([
-            transforms.Resize(target_size, interpolation=transforms.InterpolationMode.NEAREST),
+            #transforms.Resize(target_size, interpolation=transforms.InterpolationMode.NEAREST),
             transforms.ToTensor()
         ])
 
