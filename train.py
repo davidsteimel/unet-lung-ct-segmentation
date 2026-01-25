@@ -160,7 +160,7 @@ def main():
         val_loss = val_metrics["Loss"]
         val_dice = val_metrics["Dice"]
 
-        with open(log_file, mode="a", newline="") as f:
+        with open(log_path, mode="a", newline="") as f:
             writer = csv.writer(f, delimiter=";")
             writer.writerow([
                 int(epoch),
