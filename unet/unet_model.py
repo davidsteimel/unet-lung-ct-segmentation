@@ -3,14 +3,14 @@ import torch.nn.functional as F
 from .unet_parts import  DoubleConv, Down, Up
 
 class UNet(nn.Module):
-    def __init__(self, n_channels, n_classes):
+    def __init__(self, n_channels, n_classes, dropout=0.5):
         super(UNet, self).__init__()
 
         self.inc = DoubleConv(n_channels, 64)
         self.down1 = Down(64, 128)
         self.down2 = Down(128, 256)
         self.down3 = Down(256, 512)
-        self.down4 = Down(512, 1024)
+        self.down4 = Down(512, 1024, dropout_p=dropout)
 
         self.up1 = Up(1024,512)
         self.up2 = Up(512,256)

@@ -5,7 +5,7 @@ import shutil
 import cv2
 import numpy as np
 import utils.config as config
-
+import json
 
 all_image_files = glob.glob(os.path.join(config.IMAGE_DIR, '*.jpg'))
 all_mask_files = glob.glob(os.path.join(config.MASK_DIR, '*.jpg'))
@@ -28,6 +28,17 @@ val_split_end = int(num_total * 0.8)
 train_ids = set(patient_ids[:train_split_end])
 val_ids = set(patient_ids[train_split_end:val_split_end])
 test_ids = set(patient_ids[val_split_end:])
+
+split_info = {
+    "seed": 42,
+    "train_ids": sorted(list(train_ids)),
+    "val_ids": sorted(list(val_ids)),
+    "test_ids": sorted(list(test_ids))
+}
+
+info_file_path = os.path.join(config.OUTPUT_DIR, str(config.TARGET_SIZE[1]),"split_info.json")
+with open(info_file_path, "w") as f:
+    json.dump(split_info, f, indent=4)
 
 print(f'Total: {num_total} | Train: {len(train_ids)} | Val: {len(val_ids)} | Test: {len(test_ids)}')
 

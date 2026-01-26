@@ -4,6 +4,7 @@ from utils.dice_score import dice_coeff
 from torchvision.utils import make_grid
 import torchvision.utils as vutils
 from perun import monitor
+from dice_score import TopKDiceLoss
 
 @torch.no_grad()
 def check_accuracy(loader, model, device="cpu"):
@@ -93,8 +94,9 @@ def save_predictions_as_imgs(
 @torch.no_grad()
 def evaluate(loader, model, loss_fn, device, threshold=0.5):
     model.eval()
-
+    loss_fn_all = TopKDiceLoss(k=100)
     running_loss = 0.0
+    running_loss_all = 0.0
     total_samples = 0
     num_correct = 0
     num_pixels = 0
@@ -114,8 +116,10 @@ def evaluate(loader, model, loss_fn, device, threshold=0.5):
 
         logits = model(images) 
         loss = loss_fn(logits, true_masks)
+        loss_all = loss_fn_all(logits, true_masks)
         batch_size = images.size(0)
         running_loss += loss.item() * batch_size
+        running_loss_all += loss_all.item() * batch_size
         total_samples += batch_size
 
         # Probabilities
@@ -141,6 +145,7 @@ def evaluate(loader, model, loss_fn, device, threshold=0.5):
         steps += 1
 
     avg_loss = running_loss / total_samples
+    avg_loss_all = running_loss_all / total_samples
     acc = num_correct / num_pixels * 100 if num_pixels > 0 else 0
     avg_dice = dice_score / len(loader)
 
@@ -149,6 +154,7 @@ def evaluate(loader, model, loss_fn, device, threshold=0.5):
 
     return {
         "Loss": avg_loss,
+        "Loss_All": avg_loss_all,
         "Accuracy": acc,
         "Dice": avg_dice,
         "TP": TP,

@@ -17,10 +17,10 @@ class DoubleConv(nn.Module):
         return self.double_conv(x)
     
 class Down(nn.Module):
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, dropout_p=0.0):
         super(Down, self).__init__()
         self.pool = nn.MaxPool2d(2)
-        self.conv = DoubleConv(in_channels, out_channels)
+        self.conv = DoubleConv(in_channels, out_channels, dropout_p=dropout_p)
 
     def forward(self, x):
         x = self.pool(x)
