@@ -4,7 +4,7 @@ from utils.dice_score import dice_coeff
 from torchvision.utils import make_grid
 import torchvision.utils as vutils
 from perun import monitor
-from dice_score import TopKDiceLoss
+from utils.dice_score import TopKDiceLoss
 
 @torch.no_grad()
 def check_accuracy(loader, model, device="cpu"):
