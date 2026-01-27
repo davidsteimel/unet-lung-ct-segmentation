@@ -2,8 +2,9 @@ import os
 import glob
 import torch
 from PIL import Image
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
 from pathlib import Path 
+from utils import config
 import torchvision.transforms as transforms 
 
 class BasicDataset(Dataset):
@@ -50,7 +51,7 @@ class BasicDataset(Dataset):
         return patient_dict
 
     def __len__(self):
-        return len(self.ids)
+        return len(self.samples)
 
     def __getitem__(self, index):
         pid, slice_index = self.samples[index]
@@ -73,3 +74,13 @@ class BasicDataset(Dataset):
             'image': image_tensor,
             'mask': mask_tensor
         }
+    
+def get_dataloader( dataset, mode, batch_size):
+        return DataLoader(
+            dataset,
+            batch_size=batch_size,
+            shuffle=(mode == "train"), 
+            num_workers=config.NUM_WORKERS,
+            pin_memory=True,
+            drop_last=(mode == "train")
+        )

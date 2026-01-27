@@ -9,7 +9,7 @@ from tqdm import tqdm
 import argparse
 import utils.config as config
 from unet.unet_model import UNet
-from utils.data_loading import BasicDataset
+from utils.data_loading import BasicDataset, get_dataloader
 from utils.utils import (
     check_accuracy,
     save_predictions_as_imgs,
@@ -85,14 +85,11 @@ def main():
         images_dir=config.TRAIN_IMG_DIR,
         masks_dir=config.TRAIN_MASK_DIR,
     )
-    
-    train_loader = DataLoader(
-        train_ds,
-        batch_size=config.BATCH_SIZE,
-        num_workers=config.NUM_WORKERS,
-        pin_memory=config.PIN_MEMORY,
-        shuffle=True,
-        drop_last=True,
+
+    train_loader = get_dataloader(
+        dataset= train_ds,
+        mode="train",
+        batch_size=config.BATCH_SIZE
     )
 
     val_ds = BasicDataset(
@@ -100,13 +97,10 @@ def main():
         masks_dir=config.VAL_MASK_DIR,
     )
 
-    val_loader = DataLoader(
-        val_ds,
-        batch_size=config.BATCH_SIZE,
-        num_workers=config.NUM_WORKERS,
-        pin_memory=config.PIN_MEMORY,
-        shuffle=False,
-        drop_last=False,
+    val_loader = get_dataloader(
+        dataset = val_ds,
+        mode="val",
+        batch_size=config.BATCH_SIZE
     )
 
     print(f"Starting training on {config.DEVICE} for {config.NUM_EPOCHS} epochs \n"
