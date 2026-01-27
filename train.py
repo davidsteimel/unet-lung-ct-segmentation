@@ -69,7 +69,7 @@ def main():
     config.LEARNING_RATE = args.lr
     config.LOAD_MODEL = args.load
 
-    model = UNet(n_channels=config.IN_CHANNELS, n_classes=config.NUM_CLASSES, dropout_p=config.DROPOUT_P).to(config.DEVICE)
+    model = UNet(n_channels=config.IN_CHANNELS, n_classes=config.NUM_CLASSES, dropout=config.DROPOUT).to(config.DEVICE)
     loss_fn = TopKDiceLoss(k=20, smooth=1e-5) 
 
     optimizer = optim.AdamW(

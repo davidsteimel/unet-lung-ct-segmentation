@@ -14,7 +14,7 @@ TARGET_SIZE = (256, 256)
 # Model settings
 IN_CHANNELS = 1
 NUM_CLASSES = 1 
-DROPOUT_P = 0.3
+DROPOUT = 0.3
 
 # Paths
 BASE_DIR = "data_processed"
