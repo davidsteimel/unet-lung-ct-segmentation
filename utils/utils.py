@@ -114,9 +114,12 @@ def evaluate(loader, model, loss_fn, device, threshold=0.5):
         else:
             true_masks = true_masks.float()
 
+        true_masks = (true_masks > 0.5).float()
         logits = model(images) 
+
         loss = loss_fn(logits, true_masks)
         loss_all = loss_fn_all(logits, true_masks)
+
         batch_size = images.size(0)
         running_loss += loss.item() * batch_size
         running_loss_all += loss_all.item() * batch_size
@@ -137,18 +140,18 @@ def evaluate(loader, model, loss_fn, device, threshold=0.5):
         TN += ((preds == 0) & (true_masks == 0)).sum().item()
 
         # Dice
-        dice_score += dice_coeff(
+        batch_dice = dice_coeff(
             preds,
             true_masks,
             reduce_batch_first=False
         )
-        steps += 1
+        dice_score += batch_dice.item() * batch_size
 
     avg_loss = running_loss / total_samples
     avg_loss_all = running_loss_all / total_samples
+
     acc = num_correct / num_pixels * 100 if num_pixels > 0 else 0
     avg_dice = dice_score / len(loader)
-
     precision = TP / (TP + FP + 1e-6)
     recall    = TP / (TP + FN + 1e-6)
 

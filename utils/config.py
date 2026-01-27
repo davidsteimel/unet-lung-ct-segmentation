@@ -5,7 +5,7 @@ import torch
 LEARNING_RATE = 0.0001
 DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 BATCH_SIZE = 8
-NUM_EPOCHS = 20  
+NUM_EPOCHS = 15  
 NUM_WORKERS = 4 # Number of subprocesses for data loading
 PIN_MEMORY = True # Whether to keep data in pinned memory
 LOAD_MODEL = False 
