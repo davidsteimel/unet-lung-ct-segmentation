@@ -69,8 +69,8 @@ def main():
     config.LEARNING_RATE = args.lr
     config.LOAD_MODEL = args.load
 
-    model = UNet(n_channels=config.IN_CHANNELS, n_classes=config.NUM_CLASSES).to(config.DEVICE)
-    loss_fn = TopKDiceLoss(k=10, smooth=1e-5) 
+    model = UNet(n_channels=config.IN_CHANNELS, n_classes=config.NUM_CLASSES, dropout_p=config.DROPOUT_P).to(config.DEVICE)
+    loss_fn = TopKDiceLoss(k=20, smooth=1e-5) 
 
     optimizer = optim.AdamW(
         model.parameters(),
@@ -113,7 +113,7 @@ def main():
           f"with a learning rate of {config.LEARNING_RATE} and a batch size of {config.BATCH_SIZE}.")
     
     os.makedirs(config.LOG_DIR, exist_ok=True)
-    log_file = f"log_{config.TARGET_SIZE[1]}_{config.NUM_EPOCHS}_unet.csv"
+    log_file = f"log_{config.TARGET_SIZE[1]}_{config.NUM_EPOCHS}_{config.LEARNING_RATE}_unet.csv"
     log_path = os.path.join(config.LOG_DIR, log_file)
     if not os.path.isfile(log_path):
         with open(log_path, mode="w", newline="") as f:

@@ -5,21 +5,22 @@ import torch
 LEARNING_RATE = 0.0001
 DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 BATCH_SIZE = 8
-NUM_EPOCHS = 15  
+NUM_EPOCHS = 30  
 NUM_WORKERS = 4 # Number of subprocesses for data loading
 PIN_MEMORY = True # Whether to keep data in pinned memory
 LOAD_MODEL = False 
-TARGET_SIZE = (1024, 1024)
+TARGET_SIZE = (256, 256)
 
 # Model settings
 IN_CHANNELS = 1
 NUM_CLASSES = 1 
+DROPOUT_P = 0.3
 
 # Paths
 BASE_DIR = "data_processed"
 IMAGE_DIR = 'data/images/images/' 
 MASK_DIR = 'data/masks/masks/'
-LOG_DIR = "results_1024"
+LOG_DIR = "results_256"
 
 TRAIN_IMG_DIR = os.path.join(BASE_DIR, str(TARGET_SIZE[1]), "train", "image")
 TRAIN_MASK_DIR = os.path.join(BASE_DIR, str(TARGET_SIZE[1]), "train", "mask")
