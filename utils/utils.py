@@ -151,7 +151,7 @@ def evaluate(loader, model, loss_fn, device, threshold=0.5):
     avg_loss_all = running_loss_all / total_samples
 
     acc = num_correct / num_pixels * 100 if num_pixels > 0 else 0
-    avg_dice = dice_score / len(loader)
+    avg_dice = dice_score / total_samples
     precision = TP / (TP + FP + 1e-6)
     recall    = TP / (TP + FN + 1e-6)
 
