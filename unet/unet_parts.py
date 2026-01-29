@@ -3,14 +3,24 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class DoubleConv(nn.Module):
-    def __init__(self, in_channels, out_channels, dropout_p=0.0):
+    def __init__(self, in_channels, out_channels, dropout_p=0.0, input_res = 256):
         super(DoubleConv, self).__init__()
 
+        kernel_size = int(3 * (input_res / 256))
+
+        if kernel_size % 2 == 0: kernel_size += 1 
+        padding = kernel_size // 2
+
+        if input_res == 256:
+            dilation = 1
+        else:
+            dilation = int(3 * (input_res / 256))
+
         layers = [
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, bias=False),
+            nn.Conv2d(in_channels, out_channels, kernel_size= kernel_size, padding=padding, bias=False),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(inplace=True),
-            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1, bias=False),
+            nn.Conv2d(out_channels, out_channels, kernel_size=kernel_size, padding=padding, bias=False),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(inplace=True)
         ]
