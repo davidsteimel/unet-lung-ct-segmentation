@@ -2,7 +2,7 @@ import os
 import torch
 
 # hyperparameter
-LEARNING_RATE = 0.0001
+LEARNING_RATE = 0.001
 DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 BATCH_SIZE = 8
 NUM_EPOCHS = 30  
@@ -14,7 +14,7 @@ TARGET_SIZE = (256, 256)
 # Model settings
 IN_CHANNELS = 1
 NUM_CLASSES = 1 
-DROPOUT = 0.3
+DROPOUT = 0.2
 
 # Paths
 BASE_DIR = "data_processed"

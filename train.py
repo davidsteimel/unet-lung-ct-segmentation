@@ -17,7 +17,7 @@ from utils.utils import (
 )
 from perun import monitor
 
-def train_fn(loader, model, optimizer, loss_fn):
+def train_fn(loader, model, optimizer, loss_fn, profiler=None):
     model.train()
     loop = tqdm(loader)
     running_loss = 0.0
@@ -46,6 +46,9 @@ def train_fn(loader, model, optimizer, loss_fn):
         running_loss += loss.item() * batch_size
         total_samples += batch_size
         
+        if profiler:
+            profiler.step()
+
         loop.set_postfix(loss=loss.item())
 
     return running_loss / total_samples
@@ -79,11 +82,20 @@ def main():
         betas = (0.9, 0.999)
     )
 
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=2)
+    scheduler = scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, 
+        mode='max', 
+        patience=3,    
+        factor=0.5,   
+        threshold=1e-3,
+        min_lr=1e-6, 
+        verbose=True
+    )
 
     train_ds = BasicDataset(
         images_dir=config.TRAIN_IMG_DIR,
         masks_dir=config.TRAIN_MASK_DIR,
+        is_train=True
     )
 
     train_loader = get_dataloader(
@@ -95,6 +107,7 @@ def main():
     val_ds = BasicDataset(
         images_dir=config.VAL_IMG_DIR,
         masks_dir=config.VAL_MASK_DIR,
+        is_train=False
     )
 
     val_loader = get_dataloader(
@@ -138,56 +151,63 @@ def main():
                     'Val_Precision',
                     'Val_Recall'
                 ])
+            
+    with torch.profiler.profile(
+        schedule=torch.profiler.schedule(wait=0, warmup=2, active=5, repeat=1),
+        on_trace_ready=torch.profiler.tensorboard_trace_handler(config.LOG_DIR),
+        record_shapes=True,
+        with_stack=True
+    ) as prof:
+        
+        for epoch in range(config.NUM_EPOCHS):
+            print(f"\nEpoch {epoch+1}/{config.NUM_EPOCHS}")
+            start_time = time.time()
 
-    for epoch in range(config.NUM_EPOCHS):
-        print(f"\nEpoch {epoch+1}/{config.NUM_EPOCHS}")
-        start_time = time.time()
+            train_loss = train_fn(train_loader, model, optimizer, loss_fn, profiler=prof if epoch == 0 else None)
 
-        train_loss = train_fn(train_loader, model, optimizer, loss_fn)
+            val_metrics = evaluate(val_loader, model, loss_fn, device=config.DEVICE)
+            train_metrics = evaluate(train_loader, model, loss_fn, device=config.DEVICE)
 
-        val_metrics = evaluate(val_loader, model, loss_fn, device=config.DEVICE)
-        train_metrics = evaluate(train_loader, model, loss_fn, device=config.DEVICE)
+            scheduler.step(val_metrics['Dice'])
+            duration = time.time() - start_time
+            current_lr = optimizer.param_groups[0]["lr"]
+            train_dice = train_metrics["Dice"]
+            val_loss = val_metrics["Loss"]
+            val_dice = val_metrics["Dice"]
+            val_loss_all = val_metrics["Loss_All"]
 
-        scheduler.step(val_metrics['Dice'])
-        duration = time.time() - start_time
+            with open(log_path, mode="a", newline="") as f:
+                writer = csv.writer(f, delimiter=";")
+                writer.writerow([
+                    int(epoch),
+                    int(config.TARGET_SIZE[1]),
+                    current_lr,
+                    config.BATCH_SIZE,
+                    len(train_loader.dataset),
+                    len(val_loader.dataset),
+                    round(float(train_loss), 4),
+                    round(float(val_loss), 4),
+                    round(float(val_loss_all), 4),
+                    round(float(train_dice), 4),
+                    round(float(val_dice), 4),
+                    round(duration, 2),
+                    round(float(train_metrics['TP']), 4),
+                    round(float(train_metrics['FP']), 4),
+                    round(float(train_metrics['TN']), 4),
+                    round(float(train_metrics['FN']), 4),
+                    round(float(train_metrics['Precision']), 4),
+                    round(float(train_metrics['Recall']), 4),
+                    round(float(val_metrics['TP']), 4),
+                    round(float(val_metrics['FP']), 4),
+                    round(float(val_metrics['TN']), 4),
+                    round(float(val_metrics['FN']), 4),
+                    round(float(val_metrics['Precision']), 4),
+                    round(float(val_metrics['Recall']), 4)
+                ])
 
-        train_dice = train_metrics["Dice"]
-        val_loss = val_metrics["Loss"]
-        val_dice = val_metrics["Dice"]
-        val_loss_all = val_metrics["Loss_All"]
-
-        with open(log_path, mode="a", newline="") as f:
-            writer = csv.writer(f, delimiter=";")
-            writer.writerow([
-                int(epoch),
-                int(config.TARGET_SIZE[1]),
-                config.LEARNING_RATE,
-                config.BATCH_SIZE,
-                len(train_loader.dataset),
-                len(val_loader.dataset),
-                round(float(train_loss), 4),
-                round(float(val_loss), 4),
-                round(float(val_loss_all), 4),
-                round(float(train_dice), 4),
-                round(float(val_dice), 4),
-                round(duration, 2),
-                round(float(train_metrics['TP']), 4),
-                round(float(train_metrics['FP']), 4),
-                round(float(train_metrics['TN']), 4),
-                round(float(train_metrics['FN']), 4),
-                round(float(train_metrics['Precision']), 4),
-                round(float(train_metrics['Recall']), 4),
-                round(float(val_metrics['TP']), 4),
-                round(float(val_metrics['FP']), 4),
-                round(float(val_metrics['TN']), 4),
-                round(float(val_metrics['FN']), 4),
-                round(float(val_metrics['Precision']), 4),
-                round(float(val_metrics['Recall']), 4)
-            ])
-
-        #save_predictions_as_imgs(
-        #    val_loader, model, folder="saved_images/", device=config.DEVICE, num_examples=8, epoche=epoch
-        #)
+            #save_predictions_as_imgs(
+            #    val_loader, model, folder="saved_images/", device=config.DEVICE, num_examples=8, epoche=epoch
+            #)
 
 if __name__ == "__main__":
     main()

@@ -6,9 +6,12 @@ from torch.utils.data import Dataset, DataLoader
 from pathlib import Path 
 from utils import config
 import torchvision.transforms as transforms 
+import numpy as np
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
 
 class BasicDataset(Dataset):
-    def __init__(self, images_dir, masks_dir, target_size=(512, 512)):
+    def __init__(self, images_dir, masks_dir, target_size=(512, 512), is_train=True):
         self.images_dir = Path(images_dir)
         self.masks_dir = Path(masks_dir)
         self.patient_images = self.get_patient_data(images_dir)
@@ -16,15 +19,19 @@ class BasicDataset(Dataset):
         self.samples = []
         self.ids = [file for file in os.listdir(images_dir) if not file.startswith('.')]
         
-        self.transform = transforms.Compose([
-            #transforms.Resize(target_size, interpolation=transforms.InterpolationMode.BICUBIC),
-            transforms.ToTensor() 
-        ])
-        
-        self.mask_transform = transforms.Compose([
-            #transforms.Resize(target_size, interpolation=transforms.InterpolationMode.NEAREST),
-            transforms.ToTensor()
-        ])
+        if is_train:
+            self.transform = A.Compose([
+                A.HorizontalFlip(p=0.5),
+                A.VerticalFlip(p=0.5),
+                A.Rotate(limit=30, p=0.5),
+                A.Normalize(mean=(0.5,), std=(0.5,)),
+                ToTensorV2()
+            ])
+        else:
+            self.transform = A.Compose([
+                A.Normalize(mean=(0.5,), std=(0.5,)),
+                ToTensorV2()
+            ])
 
         for pid in self.patient_images:
             images = self.patient_images[pid]
@@ -58,17 +65,14 @@ class BasicDataset(Dataset):
         img_path = self.patient_images[pid][slice_index][1]
         mask_path = self.patient_masks[pid][slice_index][1]
         
-        image = Image.open(img_path).convert("L")
-        mask = Image.open(mask_path).convert("L")
-      
-        image_tensor = self.transform(image)
-        image_tensor = (image_tensor - 0.5) / 0.5
-        
-        mask_tensor = self.mask_transform(mask)
-        # mask should be binary
-        mask_tensor = (mask_tensor > 0.5).float()
-        
-        mask_tensor = mask_tensor.squeeze(0) 
+        image = np.array(Image.open(img_path).convert("L"))
+        mask = np.array(Image.open(mask_path).convert("L"))
+
+        augmented = self.transform(image=image, mask=mask)
+        image_tensor = augmented['image']
+        mask_tensor = augmented['mask']
+
+        mask_tensor = (mask_tensor.float() / 255.0 > 0.5).float()
 
         return {
             'image': image_tensor,
