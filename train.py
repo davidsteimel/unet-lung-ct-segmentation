@@ -88,8 +88,7 @@ def main():
         patience=3,    
         factor=0.5,   
         threshold=1e-3,
-        min_lr=1e-6, 
-        verbose=True
+        min_lr=1e-6
     )
 
     train_ds = BasicDataset(
