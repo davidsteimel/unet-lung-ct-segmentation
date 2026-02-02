@@ -46,16 +46,17 @@ splits = ['train', 'val', 'test']
 types = ['image', 'mask']
 resolution = str(config.TARGET_SIZE[1])
 
-info_file_path = os.path.join(config.OUTPUT_DIR, resolution,"split_info.json")
+info_file_path = os.path.join(config.BASE_DIR, resolution,"split_info.json")
+
+#os.makedirs(os.path.dirname(info_file_path), exist_ok=True)
+with open(info_file_path, "w") as f:
+    json.dump(split_info, f, indent=4)
 
 for split in splits:
     for type_ in types:
         path = os.path.join('data_processed', resolution, split, type_)
         os.makedirs(path, exist_ok=True)
         print(f"Created/checked directory: {path}")
-
-with open(info_file_path, "w") as f:
-    json.dump(split_info, f, indent=4)
 
 print(f'Total patients: {num_total}')
 print(f'Training patients: {len(train_ids)}')

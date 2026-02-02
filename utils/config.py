@@ -9,7 +9,7 @@ NUM_EPOCHS = 30
 NUM_WORKERS = 4 # Number of subprocesses for data loading
 PIN_MEMORY = True # Whether to keep data in pinned memory
 LOAD_MODEL = False 
-TARGET_SIZE = (256, 256)
+TARGET_SIZE = (768, 768)
 
 # Model settings
 IN_CHANNELS = 1
@@ -20,7 +20,7 @@ DROPOUT = 0.2
 BASE_DIR = "data_processed"
 IMAGE_DIR = 'data/images/images/' 
 MASK_DIR = 'data/masks/masks/'
-LOG_DIR = "results_256"
+LOG_DIR = "results_768"
 
 TRAIN_IMG_DIR = os.path.join(BASE_DIR, str(TARGET_SIZE[1]), "train", "image")
 TRAIN_MASK_DIR = os.path.join(BASE_DIR, str(TARGET_SIZE[1]), "train", "mask")
