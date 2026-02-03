@@ -1,4 +1,5 @@
 import torch
+import torch.cuda.amp 
 import csv
 import os
 import time
@@ -17,7 +18,7 @@ from utils.utils import (
 )
 from perun import monitor
 
-def train_fn(loader, model, optimizer, loss_fn, profiler=None):
+def train_fn(loader, model, optimizer, loss_fn, scaler, profiler=None):
     model.train()
     loop = tqdm(loader)
     running_loss = 0.0
@@ -33,14 +34,18 @@ def train_fn(loader, model, optimizer, loss_fn, profiler=None):
         else:
             targets = targets.float()
         
-        predictions = model(data_img)
-        loss = loss_fn(predictions, targets)
+        optimizer.zero_grad()
+
+        with torch.amp.autocast("cuda", dtype=torch.float16): 
+            predictions = model(data_img)
+            loss = loss_fn(predictions, targets)
 
         # Backward Pass
-        optimizer.zero_grad() 
-        loss.backward() 
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)      
-        optimizer.step()      
+        scaler.scale(loss).backward()
+        scaler.unscale_(optimizer)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        scaler.step(optimizer)
+        scaler.update()     
 
         batch_size = data_img.size(0)
         running_loss += loss.item() * batch_size
@@ -74,6 +79,7 @@ def main():
 
     model = UNet(n_channels=config.IN_CHANNELS, n_classes=config.NUM_CLASSES, dropout=config.DROPOUT).to(config.DEVICE)
     loss_fn = TopKDiceLoss(k=20, smooth=1e-5) 
+    scaler = torch.amp.GradScaler("cuda")
 
     optimizer = optim.AdamW(
         model.parameters(),
@@ -162,7 +168,7 @@ def main():
             print(f"\nEpoch {epoch+1}/{config.NUM_EPOCHS}")
             start_time = time.time()
 
-            train_loss = train_fn(train_loader, model, optimizer, loss_fn, profiler=prof if epoch == 0 else None)
+            train_loss = train_fn(train_loader, model, optimizer, loss_fn, scaler=scaler , profiler=prof if epoch == 0 else None)
 
             val_metrics = evaluate(val_loader, model, loss_fn, device=config.DEVICE)
             train_metrics = evaluate(train_loader, model, loss_fn, device=config.DEVICE)
