@@ -28,46 +28,47 @@ class TopKDiceLoss(nn.Module):
         self.smooth = smooth
 
     def forward(self, logits: Tensor, target: Tensor):
-        logits = logits.float()
-        
-        # Calculate probabilities since logits are passed which are not normalized
-        probs = torch.sigmoid(logits)
-        
-        # Ensure dimensions match
-        if target.dim() == 3:
-            target = target.unsqueeze(1)
-        
-        target = target.float()
-        # Flatten everything to work pixel-wise
-        probs_flat = probs.view(probs.shape[0], -1)
-        target_flat = target.view(target.shape[0], -1)
+        with torch.amp.autocast("cuda", enabled=False):
+            logits = logits.float()
 
-        # Calculate "True Positive Map"
-        tp_map = probs_flat * target_flat
-        
-        mask = torch.ones_like(tp_map)
-        
-        for i in range(probs.shape[0]):
-            foreground_indices = (target_flat[i] == 1)
+            # Calculate probabilities since logits are passed which are not normalized
+            probs = torch.sigmoid(logits)
             
-            if foreground_indices.sum() > 0:
-                foreground_tp = tp_map[i][foreground_indices]
+            # Ensure dimensions match
+            if target.dim() == 3:
+                target = target.unsqueeze(1)
+            
+            target = target.float()
+            # Flatten everything to work pixel-wise
+            probs_flat = probs.reshape(probs.shape[0], -1)
+            target_flat = target.reshape(target.shape[0], -1)
 
-                k_num = int(foreground_tp.numel() * (self.k / 100.0))
-                k_num = max(1, k_num) 
+            # Calculate "True Positive Map"
+            tp_map = probs_flat * target_flat
+            
+            mask = torch.ones_like(tp_map)
+            
+            for i in range(probs.shape[0]):
+                foreground_indices = (target_flat[i] == 1)
                 
-                threshold_val, _ = torch.kthvalue(foreground_tp, k_num)
-                
-                # Create "Ignore Map"
-                pixel_to_ignore = (target_flat[i] == 1) & (tp_map[i] > threshold_val)
-                mask[i][pixel_to_ignore] = 0.0
+                if foreground_indices.sum() > 0:
+                    foreground_tp = tp_map[i][foreground_indices]
 
-        probs_k = probs_flat * mask
-        target_k = target_flat * mask
+                    k_num = int(foreground_tp.numel() * (self.k / 100.0))
+                    k_num = max(1, k_num) 
+                    
+                    threshold_val, _ = torch.kthvalue(foreground_tp, k_num)
+                    
+                    # Create "Ignore Map"
+                    pixel_to_ignore = (target_flat[i] == 1) & (tp_map[i] > threshold_val)
+                    mask[i][pixel_to_ignore] = 0.0
 
-        intersection = (probs_k * target_k).sum(dim=1)
-        union = probs_k.sum(dim=1) + target_k.sum(dim=1)
-        
-        dice = (2. * intersection + self.smooth) / (union + self.smooth)
+            probs_k = probs_flat * mask
+            target_k = target_flat * mask
 
-        return 1 - dice.mean()
+            intersection = (probs_k * target_k).sum(dim=1)
+            union = probs_k.sum(dim=1) + target_k.sum(dim=1)
+            
+            dice = (2. * intersection + self.smooth) / (union + self.smooth)
+
+            return 1 - dice.mean()
