@@ -28,13 +28,16 @@ class TopKDiceLoss(nn.Module):
         self.smooth = smooth
 
     def forward(self, logits: Tensor, target: Tensor):
+        logits = logits.float()
+        
         # Calculate probabilities since logits are passed which are not normalized
         probs = torch.sigmoid(logits)
         
         # Ensure dimensions match
         if target.dim() == 3:
             target = target.unsqueeze(1)
-            
+        
+        target = target.float()
         # Flatten everything to work pixel-wise
         probs_flat = probs.view(probs.shape[0], -1)
         target_flat = target.view(target.shape[0], -1)
