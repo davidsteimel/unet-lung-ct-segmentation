@@ -85,7 +85,8 @@ def main():
         model.parameters(),
         lr=config.LEARNING_RATE,
         weight_decay=1e-4, 
-        betas = (0.9, 0.999)
+        betas = (0.9, 0.999),
+        eps=1e-4
     )
 
     scheduler = scheduler = optim.lr_scheduler.ReduceLROnPlateau(
