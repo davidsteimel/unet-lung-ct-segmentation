@@ -34,7 +34,7 @@ class Down(nn.Module):
     def __init__(self, in_channels, out_channels, dropout_p=0.0, input_res=256, kernel_flex=False):
         super(Down, self).__init__()
 
-        self.pool = nn.MaxPool2d(stride=2)
+        self.pool = nn.MaxPool2d(stride=2, kernel_size=2)
         self.conv = DoubleConv(in_channels=in_channels, out_channels=out_channels, dropout_p=dropout_p, input_res=input_res, kernel_flex=kernel_flex)
 
     def forward(self, x):
