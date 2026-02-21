@@ -29,7 +29,7 @@ Specify the dataset used (e.g., LUNA16, LIDC-IDRI, or custom dataset).
 ## Training
 
 ```bash
-python train.py --epochs 100 --batch-size 32 --learning-rate 0.001 
+python train.py --config experiments/1024/config.yaml
 ```
 
 ## Results

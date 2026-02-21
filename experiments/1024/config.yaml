@@ -1,0 +1,22 @@
+hyperparameters:
+  learning_rate: 0.001
+  batch_size: 8
+  num_epochs: 30
+  num_workers: 4 # Number of subprocesses for data loading
+  pin_memory: true # Whether to keep data in pinned memory
+  load_model: false # Whether to load a pre-trained model
+  save_model: false # Whether to save the model after training
+  target_size: [1024, 1024]
+  kernel_flex: true # Whether to use flexible kernel sizes
+  seed: 42 # Random seed for reproducibility
+
+model:
+  in_channels: 1
+  num_classes: 2 
+
+paths:
+  base_dir: "data_processed"
+  image_dir: "data/images/images/"
+  mask_dir: "data/masks/masks/"
+  log_dir: "results_1024"
+  checkpoint_file: "my_checkpoint.pth.tar"

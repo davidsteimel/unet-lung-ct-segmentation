@@ -1,11 +1,8 @@
 import os
 import glob
-import torch
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from pathlib import Path 
-from utils import config
-import torchvision.transforms as transforms 
 import numpy as np
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
@@ -79,12 +76,12 @@ class BasicDataset(Dataset):
             'mask': mask_tensor
         }
     
-def get_dataloader( dataset, mode, batch_size):
+def get_dataloader(config_dict, dataset, mode, batch_size):
         return DataLoader(
             dataset,
             batch_size=batch_size,
             shuffle=(mode == "train"), 
-            num_workers=config.NUM_WORKERS,
-            pin_memory=True,
+            num_workers=config_dict['hyperparameters']['num_workers'],
+            pin_memory=config_dict['hyperparameters']['pin_memory'],
             drop_last=(mode == "train")
         )

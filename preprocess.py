@@ -1,118 +1,134 @@
 import os
 import glob
 import random
-import shutil
 import cv2
 import numpy as np
-import utils.config as config
 import json
+import argparse
+import yaml
 
-all_image_files = glob.glob(os.path.join(config.IMAGE_DIR, '*.jpg'))
-all_mask_files = glob.glob(os.path.join(config.MASK_DIR, '*.jpg'))
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config_file", required=True, help="Path to config.yaml")
+    args = parser.parse_args()
 
-patient_ids = set()
+    with open(args.config_file, "r") as f:
+        config = yaml.load(f, Loader=yaml.SafeLoader)
 
-for image_path in all_image_files:
-    base_name = os.path.basename(image_path)
-    patient_id = base_name.rsplit('_', 1)[0] 
-    patient_ids.add(patient_id)
+    IMAGE_DIR = config['paths']['image_dir']
+    MASK_DIR = config['paths']['mask_dir']
+    BASE_DIR = config['paths']['base_dir']
+    TARGET_SIZE = tuple(config['hyperparameters']['target_size'])
+    RESOLUTION = str(TARGET_SIZE[1])
+    SEED = config['hyperparameters']['seed']
 
-patient_ids = list(patient_ids)
-random.seed(42)
-random.shuffle(patient_ids)
+    all_image_files = glob.glob(os.path.join(IMAGE_DIR, '*.jpg'))
 
-num_total = len(patient_ids)
-train_split_end = int(num_total * 0.7)
-val_split_end = int(num_total * 0.8)
+    patient_ids = set()
 
-train_ids = set(patient_ids[:train_split_end])
-val_ids = set(patient_ids[train_split_end:val_split_end])
-test_ids = set(patient_ids[val_split_end:])
+    for image_path in all_image_files:
+        base_name = os.path.basename(image_path)
+        patient_id = base_name.rsplit('_', 1)[0] 
+        patient_ids.add(patient_id)
 
-split_info = {
-    "seed": 42,
-    "total_patients": num_total,
-    "train_count": len(train_ids),
-    "val_count": len(val_ids),
-    "test_count": len(test_ids),
-    "train_ids": sorted(list(train_ids)),
-    "val_ids": sorted(list(val_ids)),
-    "test_ids": sorted(list(test_ids))
-}
+    patient_ids = list(patient_ids)
+    random.seed(SEED)
+    random.shuffle(patient_ids)
 
-print(f'Total: {num_total} | Train: {len(train_ids)} | Val: {len(val_ids)} | Test: {len(test_ids)}')
+    num_total = len(patient_ids)
+    train_split_end = int(num_total * 0.7)
+    val_split_end = int(num_total * 0.8)
 
-splits = ['train', 'val', 'test']
-types = ['image', 'mask']
-resolution = str(config.TARGET_SIZE[1])
+    train_ids = set(patient_ids[:train_split_end])
+    val_ids = set(patient_ids[train_split_end:val_split_end])
+    test_ids = set(patient_ids[val_split_end:])
 
-info_file_path = os.path.join(config.BASE_DIR, resolution,"split_info.json")
+    split_info = {
+        "seed": SEED,
+        "total_patients": num_total,
+        "train_count": len(train_ids),
+        "val_count": len(val_ids),
+        "test_count": len(test_ids),
+        "train_ids": sorted(list(train_ids)),
+        "val_ids": sorted(list(val_ids)),
+        "test_ids": sorted(list(test_ids))
+    }
 
-#os.makedirs(os.path.dirname(info_file_path), exist_ok=True)
-with open(info_file_path, "w") as f:
-    json.dump(split_info, f, indent=4)
+    print(f'Total: {num_total} | Train: {len(train_ids)} | Val: {len(val_ids)} | Test: {len(test_ids)}')
 
-for split in splits:
-    for type_ in types:
-        path = os.path.join('data_processed', resolution, split, type_)
-        os.makedirs(path, exist_ok=True)
-        print(f"Created/checked directory: {path}")
+    splits = ['train', 'val', 'test']
+    types = ['image', 'mask']
 
-print(f'Total patients: {num_total}')
-print(f'Training patients: {len(train_ids)}')
-print(f'Validation patients: {len(val_ids)}')
-print(f'Testing patients: {len(test_ids)}')
+    for split in splits:
+        for type_ in types:
+            path = os.path.join(BASE_DIR, RESOLUTION, split, type_)
+            os.makedirs(path, exist_ok=True)
+            print(f"Created/checked directory: {path}")
+
+    info_file_path = os.path.join(BASE_DIR, RESOLUTION,"split_info.json")
+    with open(info_file_path, "w") as f:
+        json.dump(split_info, f, indent=4)
+
+    print(f'Total patients: {num_total}')
+    print(f'Training patients: {len(train_ids)}')
+    print(f'Validation patients: {len(val_ids)}')
+    print(f'Testing patients: {len(test_ids)}')
 
 
-for image_path in all_image_files:
-    base_name = os.path.basename(image_path)
-    patient_id = base_name.rsplit('_', 1)[0] 
+    for image_path in all_image_files:
+        base_name = os.path.basename(image_path)
+        patient_id = base_name.rsplit('_', 1)[0] 
 
-    try:
-        slice_part = base_name.rsplit('_', 1)[1] 
-    except IndexError:
-        print(f"Invalid format skipped: {base_name}")
-        continue
+        try:
+            slice_part = base_name.rsplit('_', 1)[1] 
+        except IndexError:
+            print(f"Invalid format skipped: {base_name}")
+            continue
 
-    mask_base_name = f"{patient_id}_mask_{slice_part}" 
-    mask_path = os.path.join(config.MASK_DIR, mask_base_name)
+        mask_base_name = f"{patient_id}_mask_{slice_part}" 
+        mask_path = os.path.join(MASK_DIR, mask_base_name)
 
-    if not os.path.exists(mask_path):
-        print(f"Warning: Mask not found for {base_name}")
-        continue
+        if not os.path.exists(mask_path):
+            print(f"Warning: Mask not found for {base_name}")
+            continue
 
-    if patient_id in train_ids:
-        split_dir = 'train'
-    elif patient_id in val_ids:
-        split_dir = 'val'
-    elif patient_id in test_ids:
-        split_dir = 'test'
-    else:
-        continue
+        if patient_id in train_ids:
+            split_dir = 'train'
+        elif patient_id in val_ids:
+            split_dir = 'val'
+        elif patient_id in test_ids:
+            split_dir = 'test'
+        else:
+            continue
 
-    # load image as grayscale     
-    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-    if img is None: continue
+        # load image as grayscale     
+        img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+        if img is None: continue
 
-    if img.shape[:2] == config.TARGET_SIZE:
-        img_resized = img
-    else:
-        img_resized = cv2.resize(img, config.TARGET_SIZE, interpolation=cv2.INTER_CUBIC)
+        if img.shape[:2] == TARGET_SIZE:
+            img_resized = img
+        else:
+            img_resized = cv2.resize(img, TARGET_SIZE, interpolation=cv2.INTER_CUBIC)
 
-    multiclass_mask_color = cv2.imread(mask_path, cv2.IMREAD_COLOR) 
-    
-    if multiclass_mask_color is None: continue
+        # load and process mask
+        multiclass_mask_color = cv2.imread(mask_path, cv2.IMREAD_COLOR) 
+        
+        if multiclass_mask_color is None: continue
 
-    lower_blue = np.array([200, 0, 0])
-    upper_blue = np.array([255, 50, 50])
-    binary_mask = cv2.inRange(multiclass_mask_color, lower_blue, upper_blue)
+        lower_blue = np.array([200, 0, 0])
+        upper_blue = np.array([255, 50, 50])
+        binary_mask = cv2.inRange(multiclass_mask_color, lower_blue, upper_blue)
 
-    if binary_mask.shape[:2] == config.TARGET_SIZE:
-        mask_resized = binary_mask
-    else:
-        mask_resized = cv2.resize(binary_mask, config.TARGET_SIZE, interpolation=cv2.INTER_NEAREST)
+        if binary_mask.shape[:2] == TARGET_SIZE:
+            mask_resized = binary_mask
+        else:
+            mask_resized = cv2.resize(binary_mask, TARGET_SIZE, interpolation=cv2.INTER_NEAREST)
 
-    cv2.imwrite(os.path.join(config.BASE_DIR, resolution, split_dir, 'image', base_name), img_resized)
-    cv2.imwrite(os.path.join(config.BASE_DIR, resolution, split_dir, 'mask', base_name), mask_resized)
+        # Save processed files
+        cv2.imwrite(os.path.join(BASE_DIR, RESOLUTION, split_dir, 'image', base_name), img_resized)
+        cv2.imwrite(os.path.join(BASE_DIR, RESOLUTION, split_dir, 'mask', base_name), mask_resized)
 
-print("Processing completed!")
+    print("Processing completed!")
+
+if __name__ == "__main__":
+    main()

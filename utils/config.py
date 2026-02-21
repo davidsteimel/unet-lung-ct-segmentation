@@ -28,9 +28,3 @@ VAL_IMG_DIR = os.path.join(BASE_DIR, str(TARGET_SIZE[1]), "val", "image")
 VAL_MASK_DIR = os.path.join(BASE_DIR, str(TARGET_SIZE[1]), "val", "mask")
 
 CHECKPOINT_FILE = "my_checkpoint.pth.tar"
-
-
-#  ReduceLROnPlateau(factor=0.1, patience=5, min_lr=0.00001, verbose=1),
-# We should rely heavily on data augmentation with limited training data to train the CNN-based segmentation architecture, i.e. U-Net. 
-# The various techniques applied to the original dataset for data augmentation are cropping, scaling, rotating, flipping and color manipulation. 
-# The ImageDataGenerator function from the Keras library has been used for this purpose.

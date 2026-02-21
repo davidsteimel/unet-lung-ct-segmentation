@@ -1,32 +1,28 @@
 import torch
-import torch.cuda.amp 
+import yaml
 import csv
 import os
 import time
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch.profiler import ProfilerActivity
 from utils.dice_score import TopKDiceLoss
-from tqdm import tqdm
 import argparse
-import utils.config as config
 from unet.unet_model import UNet
 from utils.data_loading import BasicDataset, get_dataloader
-from utils.utils import (
-    check_accuracy,
-    save_predictions_as_imgs,
-    evaluate
-)
+from utils.utils import evaluate
 from perun import monitor
+torch.set_float32_matmul_precision('high')
 
-def train_fn(loader, model, optimizer, loss_fn, scaler, profiler=None):
+@monitor()
+def train_fn(loader, model, optimizer, loss_fn, device, profiler=None):
     model.train()
-    loop = tqdm(loader)
     running_loss = 0.0
     total_samples = 0
     
-    for batch_idx, data in enumerate(loop):
-        data_img = data['image'].to(config.DEVICE)
-        targets = data['mask'].to(config.DEVICE)
+    for batch in loader:
+        # Load data to device
+        data_img = batch['image'].to(device, non_blocking=True)
+        targets = batch['mask'].to(device, non_blocking=True)
 
         #Forward Pass
         if targets.dim() == 3:
@@ -36,60 +32,72 @@ def train_fn(loader, model, optimizer, loss_fn, scaler, profiler=None):
         
         optimizer.zero_grad()
 
-        with torch.amp.autocast("cuda", dtype=torch.float16): 
+        with torch.amp.autocast("cuda", dtype=torch.bfloat16): 
             predictions = model(data_img)
             loss = loss_fn(predictions, targets)
 
         # Backward Pass
-        scaler.scale(loss).backward()
-        scaler.unscale_(optimizer)
+        loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-        scaler.step(optimizer)
-        scaler.update()     
+        optimizer.step()    
 
-        batch_size = data_img.size(0)
-        running_loss += loss.item() * batch_size
-        total_samples += batch_size
+        current_batch_size = data_img.size(0)
+        running_loss += loss.item() * current_batch_size
+        total_samples += current_batch_size
         
         if profiler:
             profiler.step()
 
-        loop.set_postfix(loss=loss.item())
-
     return running_loss / total_samples
 
+@monitor()
 def main():
-    parser = argparse.ArgumentParser(description='UNet Training Script')
-    
-    parser.add_argument('--epochs', '-e', type=int, default=config.NUM_EPOCHS,
-                        help='Num of training epochs')
-    parser.add_argument('--batch-size', '-b', type=int, default=config.BATCH_SIZE,
-                        help='Batch size for training')
-    parser.add_argument('--lr', '--learning-rate', type=float, default=config.LEARNING_RATE,
-                        help='Learning rate for the optimizer')
-    parser.add_argument('--load', '-l', action='store_true', default=config.LOAD_MODEL,
-                        help='Load checkpoint to resume training')
-    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config_file", required=True, help="Path to config.yaml")
     args = parser.parse_args()
 
-    config.NUM_EPOCHS = args.epochs
-    config.BATCH_SIZE = args.batch_size
-    config.LEARNING_RATE = args.lr
-    config.LOAD_MODEL = args.load
+    with open(args.config_file, "r") as f:
+        config = yaml.load(f, Loader=yaml.SafeLoader)
 
-    model = UNet(n_channels=config.IN_CHANNELS, n_classes=config.NUM_CLASSES, dropout=config.DROPOUT).to(config.DEVICE)
+    # Hyperparameter
+    learning_rate = config['hyperparameters']['learning_rate']
+    batch_size = config['hyperparameters']['batch_size']
+    num_epoch = config['hyperparameters']['num_epochs']
+    target_size = tuple(config['hyperparameters']['target_size'])
+    kernel_flex = config['hyperparameters']['kernel_flex']
+    
+    # Model
+    channels_in = config['model']['in_channels']
+    num_channels = config['model']['num_classes']
+    
+    # Paths
+    base_dir = config['paths']['base_dir']
+    log_dir = config['paths']['log_dir']
+    res_str = str(target_size[1])
+    train_img_dir = os.path.join(base_dir, res_str, "train", "image")
+    train_mask_dir = os.path.join(base_dir, res_str, "train", "mask")
+    val_img_dir = os.path.join(base_dir, res_str, "val", "image")
+    val_mask_dir = os.path.join(base_dir, res_str, "val", "mask")
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    
+    model = UNet(
+        n_channels=channels_in,
+        n_classes=num_channels, 
+        input_res=target_size[1], 
+        kernel_flex=kernel_flex
+    ).to(device)
     loss_fn = TopKDiceLoss(k=20, smooth=1e-5) 
-    scaler = torch.amp.GradScaler("cuda")
 
     optimizer = optim.AdamW(
         model.parameters(),
-        lr=config.LEARNING_RATE,
+        lr=learning_rate,
         weight_decay=1e-4, 
         betas = (0.9, 0.999),
         eps=1e-4
     )
 
-    scheduler = scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, 
         mode='max', 
         patience=3,    
@@ -99,104 +107,135 @@ def main():
     )
 
     train_ds = BasicDataset(
-        images_dir=config.TRAIN_IMG_DIR,
-        masks_dir=config.TRAIN_MASK_DIR,
+        images_dir=train_img_dir,
+        masks_dir=train_mask_dir,
         is_train=True
     )
 
     train_loader = get_dataloader(
+        config_dict=config,
         dataset= train_ds,
         mode="train",
-        batch_size=config.BATCH_SIZE
+        batch_size= batch_size
     )
 
     val_ds = BasicDataset(
-        images_dir=config.VAL_IMG_DIR,
-        masks_dir=config.VAL_MASK_DIR,
+        images_dir=val_img_dir,
+        masks_dir=val_mask_dir,
         is_train=False
     )
 
     val_loader = get_dataloader(
+        config_dict=config,
         dataset = val_ds,
         mode="val",
-        batch_size=config.BATCH_SIZE
+        batch_size= batch_size
     )
-
-    print(f"Starting training on {config.DEVICE} for {config.NUM_EPOCHS} epochs \n"
-          f"with a learning rate of {config.LEARNING_RATE} and a batch size of {config.BATCH_SIZE}.")
     
-    os.makedirs(config.LOG_DIR, exist_ok=True)
-    log_file = f"log_{config.TARGET_SIZE[1]}_{config.NUM_EPOCHS}_{config.LEARNING_RATE}_unet.csv"
-    log_path = os.path.join(config.LOG_DIR, log_file)
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = f"log_{res_str}_{num_epoch}_{learning_rate}_unet.csv"
+    log_path = os.path.join(log_dir, log_file)
+
     if not os.path.isfile(log_path):
         with open(log_path, mode="w", newline="") as f:
             writer = csv.writer(f, delimiter=";")
             writer.writerow([
-                    'Epoch',
-                    'Resolution',
-                    'Learning_Rate',
-                    'Batch_Size', 
-                    'Num_Train_Samples',
-                    'Num_Val_Samples',
-                    'Train_Loss', 
-                    'Val_Loss',
-                    'Val_Loss_All',
-                    'Train_Dice',
-                    'Val_Dice', 
-                    'Duration_Sec',
-                    'Train_TP',
-                    'Train_FP',
-                    'Train_TN',
-                    'Train_FN',
-                    'Train_Precision',
-                    'Train_Recall',
-                    'Val_TP',
-                    'Val_FP',
-                    'Val_TN',
-                    'Val_FN',
-                    'Val_Precision',
-                    'Val_Recall'
+                'Num_Params',
+                'Epoch',
+                'Resolution',
+                'Learning_Rate',
+                'Batch_Size', 
+                'Num_Train_Samples',
+                'Num_Val_Samples',
+                'Train_Loss', 
+                'Val_Loss',
+                'Val_Loss_All',
+                'Train_Dice',
+                'Val_Dice', 
+                'Duration_Sec',
+                'Peak_VRAM_GB', 
+                'FLOPs_per_image',
+                'Latency_ms_per_image',
+                'Throughput_img_per_sec',
+                'Train_TP',
+                'Train_FP',
+                'Train_TN',
+                'Train_FN',
+                'Train_Precision',
+                'Train_Recall',
+                'Val_TP',
+                'Val_FP',
+                'Val_TN',
+                'Val_FN',
+                'Val_Precision',
+                'Val_Recall'
                 ])
             
     with torch.profiler.profile(
-        schedule=torch.profiler.schedule(wait=0, warmup=2, active=5, repeat=1),
+        schedule=torch.profiler.schedule(wait=2, warmup=3, active=3, repeat=1),
         on_trace_ready=torch.profiler.tensorboard_trace_handler(config.LOG_DIR),
+        with_flops=True,
         record_shapes=True,
-        with_stack=True
-    ) as prof:
+        with_modules=True,
+        profile_memory=True,
+        activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]
+    ) as prof:  
         
-        for epoch in range(config.NUM_EPOCHS):
-            print(f"\nEpoch {epoch+1}/{config.NUM_EPOCHS}")
+        for epoch in range(num_epoch):
+            torch.cuda.reset_peak_memory_stats() 
+            torch.cuda.synchronize()
             start_time = time.time()
 
-            train_loss = train_fn(train_loader, model, optimizer, loss_fn, scaler=scaler , profiler=prof if epoch == 0 else None)
+            if epoch == 0:
+                profiler = prof
+            else:
+                profiler = None
 
-            val_metrics = evaluate(val_loader, model, loss_fn, device=config.DEVICE)
-            train_metrics = evaluate(train_loader, model, loss_fn, device=config.DEVICE)
+            train_loss = train_fn(loader=train_loader, model=model, optimizer=optimizer, loss_fn=loss_fn,
+                                   device=device, profiler=profiler)
+
+            val_metrics = evaluate(val_loader, model, loss_fn, device=device)
+            train_metrics = evaluate(train_loader, model, loss_fn, device=device)
 
             scheduler.step(val_metrics['Dice'])
-            duration = time.time() - start_time
-            current_lr = optimizer.param_groups[0]["lr"]
-            train_dice = train_metrics["Dice"]
-            val_loss = val_metrics["Loss"]
-            val_dice = val_metrics["Dice"]
-            val_loss_all = val_metrics["Loss_All"]
+
+            torch.cuda.synchronize()
+            end_time = time.time()
+            duration = end_time - start_time
+
+            peak_vram = torch.cuda.max_memory_allocated(device) / (1024**3)
+            num_samples = len(train_loader.dataset)
+
+            latency_ms = (duration / num_samples) * 1000
+            throughput = num_samples / duration
+
+            if epoch == 0:
+                raw_flops = sum(item.flops for item in prof.key_averages())
+                active_steps = 3 
+                total_flops = raw_flops / (active_steps * batch_size)
+            else:
+                total_flops = 0
 
             with open(log_path, mode="a", newline="") as f:
                 writer = csv.writer(f, delimiter=";")
                 writer.writerow([
+                    sum(p.numel() for p in model.parameters()),
                     int(epoch),
-                    int(config.TARGET_SIZE[1]),
-                    current_lr,
-                    config.BATCH_SIZE,
-                    len(train_loader.dataset),
+                    int(res_str),
+                    optimizer.param_groups[0]["lr"],
+                    batch_size,
+                    num_samples,
                     len(val_loader.dataset),
                     round(float(train_loss), 4),
-                    round(float(val_loss), 4),
-                    round(float(val_loss_all), 4),
-                    round(float(train_dice), 4),
-                    round(float(val_dice), 4),
+                    round(float(val_metrics["Loss"]), 4),
+                    round(float(val_metrics["Loss_All"]), 4),
+                    round(float(train_metrics["Dice"]), 4),
+                    round(float(val_metrics["Dice"]), 4),
                     round(duration, 2),
+                    round(peak_vram, 3),
+                    total_flops,
+                    round(latency_ms, 3),
+                    round(throughput, 2),
                     round(float(train_metrics['TP']), 4),
                     round(float(train_metrics['FP']), 4),
                     round(float(train_metrics['TN']), 4),
@@ -210,10 +249,9 @@ def main():
                     round(float(val_metrics['Precision']), 4),
                     round(float(val_metrics['Recall']), 4)
                 ])
-
-            #save_predictions_as_imgs(
-            #    val_loader, model, folder="saved_images/", device=config.DEVICE, num_examples=8, epoche=epoch
-            #)
+    check_flops = sum(item.flops for item in prof.key_averages())
+    total_flops_per_image = check_flops / (3 * batch_size)
+    print(f"FLOPs per image: {total_flops_per_image}")  
 
 if __name__ == "__main__":
     main()
