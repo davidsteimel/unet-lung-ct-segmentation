@@ -65,6 +65,10 @@ def main():
     num_epoch = config['hyperparameters']['num_epochs']
     target_size = tuple(config['hyperparameters']['target_size'])
     kernel_flex = config['hyperparameters']['kernel_flex']
+    if kernel_flex:
+        kernel_str = "flex"
+    else:        
+        kernel_str = "fixed"
     
     # Model
     channels_in = config['model']['in_channels']
@@ -78,6 +82,7 @@ def main():
     train_mask_dir = os.path.join(base_dir, res_str, "train", "mask")
     val_img_dir = os.path.join(base_dir, res_str, "val", "image")
     val_mask_dir = os.path.join(base_dir, res_str, "val", "mask")
+    seed = config['hyperparameters']['seed']
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
@@ -133,7 +138,7 @@ def main():
     )
     
     os.makedirs(log_dir, exist_ok=True)
-    log_file = f"log_{res_str}_{num_epoch}_{learning_rate}_unet.csv"
+    log_file = f"log_{res_str}_{num_epoch}_{learning_rate}_{kernel_str}_{seed}_unet.csv"
     log_path = os.path.join(log_dir, log_file)
 
     if not os.path.isfile(log_path):
