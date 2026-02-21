@@ -13,7 +13,7 @@ from utils.utils import evaluate
 from perun import monitor
 torch.set_float32_matmul_precision('high')
 
-@monitor()
+@monitor(name=f"Train")
 def train_fn(loader, model, optimizer, loss_fn, device, profiler=None):
     model.train()
     running_loss = 0.0
