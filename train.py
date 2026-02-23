@@ -176,8 +176,12 @@ def main():
                 'Val_Recall'
                 ])
             
+    # Calculate the number of batches per epoch to determine the profiling schedule
+    batches_per_epoch = len(train_loader)
+    wait_steps = max(0, batches_per_epoch - 6)
+
     with torch.profiler.profile(
-        schedule=torch.profiler.schedule(wait=2, warmup=3, active=3, repeat=1),
+        schedule=torch.profiler.schedule(wait=wait_steps, warmup=3, active=3, repeat=3),
         on_trace_ready=torch.profiler.tensorboard_trace_handler(log_dir),
         with_flops=True,
         record_shapes=True,
@@ -191,13 +195,9 @@ def main():
             torch.cuda.synchronize()
             start_time = time.time()
 
-            if epoch == 0:
-                profiler = prof
-            else:
-                profiler = None
 
             train_loss = train_fn(loader=train_loader, model=model, optimizer=optimizer, loss_fn=loss_fn,
-                                   device=device, profiler=profiler)
+                                   device=device, profiler=prof)
 
             val_metrics = evaluate(val_loader, model, loss_fn, device=device)
             train_metrics = evaluate(train_loader, model, loss_fn, device=device)
@@ -214,10 +214,9 @@ def main():
             latency_ms = (duration / num_samples) * 1000
             throughput = num_samples / duration
 
-            if epoch == 0:
+            if epoch <= 2:
                 raw_flops = sum(item.flops for item in prof.key_averages())
-                active_steps = 3 
-                total_flops = raw_flops / (active_steps * batch_size)
+                total_flops = raw_flops / (3 * batch_size)
             else:
                 total_flops = 0
 
@@ -254,9 +253,6 @@ def main():
                     round(float(val_metrics['Precision']), 4),
                     round(float(val_metrics['Recall']), 4)
                 ])
-    check_flops = sum(item.flops for item in prof.key_averages())
-    total_flops_per_image = check_flops / (3 * batch_size)
-    print(f"FLOPs per image: {total_flops_per_image}")  
 
 if __name__ == "__main__":
     main()
