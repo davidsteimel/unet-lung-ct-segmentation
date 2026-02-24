@@ -34,11 +34,11 @@ def train_fn(loader, model, optimizer, loss_fn, device, profiler=None):
 
         with torch.amp.autocast("cuda", dtype=torch.bfloat16): 
             predictions = model(data_img)
-            loss = loss_fn(predictions, targets)
+            loss = loss_fn(predictions.float(), targets)
 
         # Backward Pass
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
         optimizer.step()    
 
         current_batch_size = data_img.size(0)
@@ -92,7 +92,7 @@ def main():
         input_res=target_size[1], 
         kernel_flex=kernel_flex
     ).to(device)
-    loss_fn = TopKDiceLoss(k=20, smooth=1e-5) 
+    loss_fn = TopKDiceLoss(k=50, smooth=1e-5) 
 
     optimizer = optim.AdamW(
         model.parameters(),
@@ -105,8 +105,8 @@ def main():
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, 
         mode='max', 
-        patience=3,    
-        factor=0.5,   
+        patience=4,    
+        factor=0.8,   
         threshold=1e-3,
         min_lr=1e-6
     )
