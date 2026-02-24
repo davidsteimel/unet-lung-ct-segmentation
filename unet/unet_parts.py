@@ -10,6 +10,8 @@ class DoubleConv(nn.Module):
             kernel_size = int(3 * (input_res / 256))
 
             if kernel_size % 2 == 0: kernel_size += 1 
+            if kernel_size < 3: kernel_size = 3
+            
             padding = kernel_size // 2
         else:
             kernel_size = 3
