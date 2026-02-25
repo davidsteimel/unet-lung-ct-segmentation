@@ -13,7 +13,7 @@ from utils.utils import evaluate
 from perun import monitor
 torch.set_float32_matmul_precision('high')
 
-@monitor(f"Train")
+@monitor()
 def train_fn(loader, model, optimizer, loss_fn, device, profiler=None):
     model.train()
     running_loss = 0.0
@@ -136,7 +136,7 @@ def main():
         mode="val",
         batch_size= batch_size
     )
-    
+
     os.makedirs(log_dir, exist_ok=True)
     log_file = f"log_{res_str}_{num_epoch}_{learning_rate}_{kernel_str}_{seed}_unet.csv"
     log_path = os.path.join(log_dir, log_file)
@@ -175,14 +175,20 @@ def main():
                 'Val_Precision',
                 'Val_Recall'
                 ])
-            
+    
+    trace_dir = os.path.join(
+    log_dir, 
+    f"trace_{res_str}_{num_epoch}_{learning_rate}_{kernel_str}_{seed}")
+
+    os.makedirs(trace_dir, exist_ok=True)
+
     # Calculate the number of batches per epoch to determine the profiling schedule
     batches_per_epoch = len(train_loader)
     wait_steps = max(0, batches_per_epoch - 6)
 
     with torch.profiler.profile(
         schedule=torch.profiler.schedule(wait=wait_steps, warmup=3, active=3, repeat=3),
-        on_trace_ready=torch.profiler.tensorboard_trace_handler(log_dir),
+        on_trace_ready=torch.profiler.tensorboard_trace_handler(trace_dir),
         with_flops=True,
         record_shapes=True,
         with_modules=True,

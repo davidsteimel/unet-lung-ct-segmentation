@@ -3,6 +3,7 @@ from utils.dice_score import dice_coeff
 from perun import monitor
 from utils.dice_score import TopKDiceLoss
 
+@monitor()
 @torch.no_grad()
 def evaluate(loader, model, loss_fn, device, threshold=0.5):
     model.eval()
