@@ -8,7 +8,7 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
 class BasicDataset(Dataset):
-    def __init__(self, images_dir, masks_dir, target_size=(512, 512), is_train=True):
+    def __init__(self, images_dir, masks_dir, is_train=True):
         self.images_dir = Path(images_dir)
         self.masks_dir = Path(masks_dir)
         self.patient_images = self.get_patient_data(images_dir)
