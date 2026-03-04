@@ -5,7 +5,7 @@ import os
 import time
 import torch.optim as optim
 from torch.profiler import ProfilerActivity
-from utils.dice_score import TopKDiceLoss
+from utils.dice_score import TopKDiceLoss, CETopKDiceLoss
 import argparse
 from unet.unet_model import UNet
 from utils.data_loading import BasicDataset, get_dataloader
@@ -92,7 +92,7 @@ def main():
         input_res=target_size[1], 
         kernel_flex=kernel_flex
     ).to(device)
-    loss_fn = TopKDiceLoss(k=50, smooth=1e-5) 
+    loss_fn = CETopKDiceLoss(k=50, smooth=1e-5) 
 
     optimizer = optim.AdamW(
         model.parameters(),

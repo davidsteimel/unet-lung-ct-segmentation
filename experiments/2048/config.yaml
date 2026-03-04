@@ -1,7 +1,7 @@
 hyperparameters:
   learning_rate: 0.001
   batch_size: 8
-  num_epochs: 30
+  num_epochs: 35
   num_workers: 4 # Number of subprocesses for data loading
   pin_memory: true # Whether to keep data in pinned memory
   load_model: false # Whether to load a pre-trained model
