@@ -65,6 +65,7 @@ def main():
     num_epoch = config['hyperparameters']['num_epochs']
     target_size = tuple(config['hyperparameters']['target_size'])
     kernel_flex = config['hyperparameters']['kernel_flex']
+    save_model = config['hyperparameters']['save_model']
     if kernel_flex:
         kernel_str = "flex"
     else:        
@@ -83,6 +84,7 @@ def main():
     val_img_dir = os.path.join(base_dir, res_str, "val", "image")
     val_mask_dir = os.path.join(base_dir, res_str, "val", "mask")
     seed = config['hyperparameters']['seed']
+    checkpoint_path = config['paths']['checkpoint_file']
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
@@ -186,6 +188,8 @@ def main():
     batches_per_epoch = len(train_loader)
     wait_steps = max(0, batches_per_epoch - 6)
 
+    best_val_dice = 0.0
+
     with torch.profiler.profile(
         schedule=torch.profiler.schedule(wait=wait_steps, warmup=3, active=3, repeat=3),
         on_trace_ready=torch.profiler.tensorboard_trace_handler(trace_dir),
@@ -259,6 +263,9 @@ def main():
                     round(float(val_metrics['Precision']), 4),
                     round(float(val_metrics['Recall']), 4)
                 ])
+            if save_model and val_metrics['Dice'] > best_val_dice:
+                best_val_dice = val_metrics['Dice']
+                torch.save(model.state_dict(), checkpoint_path)
 
 if __name__ == "__main__":
     main()
