@@ -190,6 +190,7 @@ def main():
     wait_steps = max(0, batches_per_epoch - 6)
 
     best_val_dice = 0.0
+    num_samples = len(train_loader.dataset)
 
     with torch.profiler.profile(
         schedule=torch.profiler.schedule(wait=wait_steps, warmup=3, active=3, repeat=3),
@@ -220,7 +221,6 @@ def main():
             duration = end_time - start_time
 
             peak_vram = torch.cuda.max_memory_allocated(device) / (1024**3)
-            num_samples = len(train_loader.dataset)
 
             latency_ms = (duration / num_samples) * 1000
             throughput = num_samples / duration
