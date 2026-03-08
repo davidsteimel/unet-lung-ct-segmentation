@@ -20,4 +20,4 @@ paths:
   image_dir: "data/images/images/"
   mask_dir: "data/masks/masks/"
   log_dir: "results_1536"
-  checkpoint_file: "results_1536/best_model.pth"
+  checkpoint_file: "results_1536/best_model_fix.pth"

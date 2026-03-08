@@ -7,7 +7,7 @@ hyperparameters:
   load_model: false # Whether to load a pre-trained model
   save_model: true # Whether to save the model after training
   target_size: [512, 512]
-  kernel_flex: true # Whether to use flexible kernel sizes
+  kernel_flex: false # Whether to use flexible kernel sizes
   seed: 44 # Random seed for reproducibility
 
 model:
@@ -20,4 +20,4 @@ paths:
   image_dir: "data/images/images/"
   mask_dir: "data/masks/masks/"
   log_dir: "results_512"
-  checkpoint_file: "results_512/best_model_flex.pth"
+  checkpoint_file: "results_512/best_model_fix.pth"
