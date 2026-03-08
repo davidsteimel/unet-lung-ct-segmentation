@@ -5,7 +5,7 @@ import os
 import time
 import torch.optim as optim
 from torch.profiler import ProfilerActivity
-from utils.dice_score import TopKDiceLoss, CETopKDiceLoss
+from utils.dice_score import TopKDiceLoss, CETopKDiceLoss, CEDiceLoss
 import argparse
 from unet.unet_model import UNet
 from utils.data_loading import BasicDataset, get_dataloader
@@ -94,8 +94,10 @@ def main():
         input_res=target_size[1], 
         kernel_flex=kernel_flex
     ).to(device)
-    loss_fn = CETopKDiceLoss(k=50, smooth=1e-5) 
-    loss_fn_all = CETopKDiceLoss(k=100, smooth=1e-5)
+
+    #loss_fn = CETopKDiceLoss(k=50, smooth=1e-5) 
+    #loss_fn_all = CETopKDiceLoss(k=100, smooth=1e-5)
+    loss_fn = CEDiceLoss(smooth=1e-6)
 
     optimizer = optim.AdamW(
         model.parameters(),
@@ -211,8 +213,8 @@ def main():
             train_loss = train_fn(loader=train_loader, model=model, optimizer=optimizer, loss_fn=loss_fn,
                                    device=device, profiler=prof)
 
-            val_metrics = evaluate(val_loader, model, loss_fn, loss_fn_all, device=device)
-            train_metrics = evaluate(train_loader, model, loss_fn, loss_fn_all, device=device)
+            val_metrics = evaluate(val_loader, model, loss_fn, loss_fn_all= loss_fn, device=device)
+            train_metrics = evaluate(train_loader, model, loss_fn, loss_fn_all= loss_fn, device=device)
 
             scheduler.step(val_metrics['Dice'])
 

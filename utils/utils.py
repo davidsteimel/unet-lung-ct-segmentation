@@ -1,7 +1,7 @@
 import torch
 from utils.dice_score import dice_coeff
 from perun import monitor
-from utils.dice_score import TopKDiceLoss
+from utils.dice_score import TopKDiceLoss, CETopKDiceLoss, CEDiceLoss, DiceLoss
 
 @monitor()
 @torch.no_grad()
@@ -14,8 +14,9 @@ def evaluate(loader, model, loss_fn, loss_fn_all, device, threshold=0.5):
     num_correct = 0
     num_pixels = 0
     dice_score = 0.0
-
     TP = FP = FN = TN = 0
+
+    dice_lossfn = DiceLoss(smooth=1e-6)
 
     for batch in loader:
         images = batch['image'].to(device)
@@ -29,11 +30,12 @@ def evaluate(loader, model, loss_fn, loss_fn_all, device, threshold=0.5):
             logits = model(images) 
 
         logits_f32 = logits.float()
+
         loss = loss_fn(logits_f32, true_masks)
         loss_all = loss_fn_all(logits_f32, true_masks)
 
         batch_size = images.size(0)
-        running_loss += loss.item() * batch_size
+        running_loss += loss.item() * batch_size                 
         running_loss_all += loss_all.item() * batch_size
         total_samples += batch_size
 
@@ -44,21 +46,17 @@ def evaluate(loader, model, loss_fn, loss_fn_all, device, threshold=0.5):
         # Accuracy
         num_correct += (preds == true_masks).sum().item()
         num_pixels += torch.numel(preds)
-        
+
         # Confusion
         TP += ((preds == 1) & (true_masks == 1)).sum().item()
         FP += ((preds == 1) & (true_masks == 0)).sum().item()
         FN += ((preds == 0) & (true_masks == 1)).sum().item()
         TN += ((preds == 0) & (true_masks == 0)).sum().item()
 
-        # Dice
-        batch_dice = dice_coeff(
-            preds.unsqueeze(1),
-            true_masks.unsqueeze(1),
-            reduce_batch_first=False
-        )
+        # Dice score
+        batch_dice    = 1 - dice_lossfn(logits_f32, true_masks)
         dice_score += batch_dice.item() * batch_size
-
+        
     avg_loss = running_loss / total_samples
     avg_loss_all = running_loss_all / total_samples
 
@@ -71,7 +69,7 @@ def evaluate(loader, model, loss_fn, loss_fn_all, device, threshold=0.5):
         "Loss": avg_loss,
         "Loss_All": avg_loss_all,
         "Accuracy": acc,
-        "Dice": avg_dice,
+        "Dice Score": avg_dice,
         "TP": TP,
         "FP": FP,
         "FN": FN,
