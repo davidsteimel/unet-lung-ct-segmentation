@@ -68,7 +68,7 @@ def evaluate(loader, model, loss_fn, loss_fn_all, device, threshold=0.5):
         "Loss": avg_loss,
         "Loss_All": avg_loss_all,
         "Accuracy": acc,
-        "Dice Score": avg_dice,
+        "Dice": avg_dice,
         "TP": TP,
         "FP": FP,
         "FN": FN,
