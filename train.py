@@ -95,14 +95,13 @@ def main():
         kernel_flex=kernel_flex
     ).to(device)
 
-    #loss_fn = CETopKDiceLoss(k=50, smooth=1e-5) 
-    #loss_fn_all = CETopKDiceLoss(k=100, smooth=1e-5)
-    loss_fn = CEDiceLoss(smooth=1e-6)
+    loss_fn = TopKDiceLoss(k=50) 
+    loss_fn_all = TopKDiceLoss(k=100)
 
     optimizer = optim.AdamW(
         model.parameters(),
         lr=learning_rate,
-        weight_decay=1e-4, 
+        weight_decay=1e-3, 
         betas = (0.9, 0.999),
         eps=1e-4
     )
@@ -110,8 +109,8 @@ def main():
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, 
         mode='max', 
-        patience=4,    
-        factor=0.8,   
+        patience=6,    
+        factor=0.5,   
         threshold=1e-3,
         min_lr=1e-6
     )
@@ -213,8 +212,8 @@ def main():
             train_loss = train_fn(loader=train_loader, model=model, optimizer=optimizer, loss_fn=loss_fn,
                                    device=device, profiler=prof)
 
-            val_metrics = evaluate(val_loader, model, loss_fn, loss_fn_all= loss_fn, device=device)
-            train_metrics = evaluate(train_loader, model, loss_fn, loss_fn_all= loss_fn, device=device)
+            val_metrics = evaluate(val_loader, model, loss_fn, loss_fn_all= loss_fn_all, device=device)
+            train_metrics = evaluate(train_loader, model, loss_fn, loss_fn_all= loss_fn_all, device=device)
 
             scheduler.step(val_metrics['Dice'])
 

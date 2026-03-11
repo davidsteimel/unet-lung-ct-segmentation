@@ -1,5 +1,4 @@
 import torch
-from utils.dice_score import dice_coeff
 from perun import monitor
 from utils.dice_score import TopKDiceLoss, CETopKDiceLoss, CEDiceLoss, DiceLoss
 
@@ -16,7 +15,7 @@ def evaluate(loader, model, loss_fn, loss_fn_all, device, threshold=0.5):
     dice_score = 0.0
     TP = FP = FN = TN = 0
 
-    dice_lossfn = DiceLoss(smooth=1e-6)
+    dice_lossfn = DiceLoss()
 
     for batch in loader:
         images = batch['image'].to(device)
