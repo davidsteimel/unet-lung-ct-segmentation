@@ -101,7 +101,7 @@ def main():
     optimizer = optim.AdamW(
         model.parameters(),
         lr=learning_rate,
-        weight_decay=1e-3, 
+        weight_decay=1e-4,
         betas = (0.9, 0.999),
         eps=1e-4
     )
@@ -109,8 +109,8 @@ def main():
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, 
         mode='max', 
-        patience=6,    
-        factor=0.5,   
+        patience=4,    
+        factor=0.8,   
         threshold=1e-3,
         min_lr=1e-6
     )
