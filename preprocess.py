@@ -3,10 +3,9 @@ import glob
 import random
 import cv2
 import numpy as np
-import yaml
-import argparse
 import json
-
+import argparse
+import yaml
 
 def main():
     parser = argparse.ArgumentParser()
@@ -16,15 +15,12 @@ def main():
     with open(args.config_file, "r") as f:
         config = yaml.load(f, Loader=yaml.SafeLoader)
 
-    IMAGE_DIR = config['data']['image_dir']
-    MASK_DIR = config['data']['mask_dir']
-    BASE_DIR = config['data']['base_dir']
-    SEED = config['SWIN_MLP']['seed']
-
-    H = config['data']['image_height']
-    W = config['data']['image_width']
-    TARGET_SIZE = (W, H) 
-    size = str(H)
+    IMAGE_DIR = config['paths']['image_dir']
+    MASK_DIR = config['paths']['mask_dir']
+    BASE_DIR = config['paths']['base_dir']
+    TARGET_SIZE = tuple(config['hyperparameters']['target_size'])
+    RESOLUTION = str(TARGET_SIZE[1])
+    SEED = config['hyperparameters']['seed']
 
     all_image_files = glob.glob(os.path.join(IMAGE_DIR, '*.jpg'))
 
@@ -34,7 +30,7 @@ def main():
         base_name = os.path.basename(image_path)
         patient_id = base_name.rsplit('_', 1)[0] 
         patient_ids.add(patient_id)
-
+    
     BLACKLISTED_IDS = {
         "ID00035637202182204917484",
         "ID00014637202177757139317",
@@ -78,11 +74,11 @@ def main():
 
     for split in splits:
         for type_ in types:
-            path = os.path.join(BASE_DIR, size, split, type_)
+            path = os.path.join(BASE_DIR, RESOLUTION, split, type_)
             os.makedirs(path, exist_ok=True)
             print(f"Created/checked directory: {path}")
 
-    info_file_path = os.path.join(BASE_DIR, size, 'split_info.json')
+    info_file_path = os.path.join(BASE_DIR, RESOLUTION,"split_info.json")
     with open(info_file_path, "w") as f:
         json.dump(split_info, f, indent=4)
 
@@ -122,7 +118,7 @@ def main():
         img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
         if img is None: continue
 
-        if img.shape[:2] == (H, W):
+        if img.shape[:2] == TARGET_SIZE:
             img_resized = img
         else:
             img_resized = cv2.resize(img, TARGET_SIZE, interpolation=cv2.INTER_CUBIC)
@@ -132,8 +128,8 @@ def main():
         
         if multiclass_mask_color is None: continue
 
-        lower_blue = np.array([190, 0, 0], dtype=np.uint8)
-        upper_blue = np.array([255, 60, 60], dtype=np.uint8)
+        lower_blue = np.array([190, 0, 0])
+        upper_blue = np.array([255, 60, 60])
         binary_mask = cv2.inRange(multiclass_mask_color, lower_blue, upper_blue)
 
         if binary_mask.shape[:2] == TARGET_SIZE:
@@ -141,8 +137,9 @@ def main():
         else:
             mask_resized = cv2.resize(binary_mask, TARGET_SIZE, interpolation=cv2.INTER_NEAREST)
 
-        cv2.imwrite(os.path.join(BASE_DIR, size, split_dir, 'image', base_name), img_resized)
-        cv2.imwrite(os.path.join(BASE_DIR, size, split_dir, 'mask', base_name), mask_resized)
+        # Save processed files
+        cv2.imwrite(os.path.join(BASE_DIR, RESOLUTION, split_dir, 'image', base_name), img_resized)
+        cv2.imwrite(os.path.join(BASE_DIR, RESOLUTION, split_dir, 'mask', base_name), mask_resized)
 
     print("Processing completed!")
 
