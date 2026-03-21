@@ -3,9 +3,10 @@ import glob
 import random
 import cv2
 import numpy as np
-import json
-import argparse
 import yaml
+import argparse
+import json
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -15,12 +16,15 @@ def main():
     with open(args.config_file, "r") as f:
         config = yaml.load(f, Loader=yaml.SafeLoader)
 
-    IMAGE_DIR = config['paths']['image_dir']
-    MASK_DIR = config['paths']['mask_dir']
-    BASE_DIR = config['paths']['base_dir']
-    TARGET_SIZE = tuple(config['hyperparameters']['target_size'])
-    RESOLUTION = str(TARGET_SIZE[1])
-    SEED = config['hyperparameters']['seed']
+    IMAGE_DIR = config['data']['image_dir']
+    MASK_DIR = config['data']['mask_dir']
+    BASE_DIR = config['data']['base_dir']
+    SEED = config['SWIN_MLP']['seed']
+
+    H = config['data']['image_height']
+    W = config['data']['image_width']
+    TARGET_SIZE = (W, H) 
+    size = str(H)
 
     all_image_files = glob.glob(os.path.join(IMAGE_DIR, '*.jpg'))
 
@@ -31,7 +35,20 @@ def main():
         patient_id = base_name.rsplit('_', 1)[0] 
         patient_ids.add(patient_id)
 
-    patient_ids = list(patient_ids)
+    BLACKLISTED_IDS = {
+        "ID00035637202182204917484",
+        "ID00014637202177757139317",
+        "ID00032637202181710233084",
+        "ID00161637202235731948764",
+        "ID00123637202217151272140",
+        "ID00027637202179689871102",
+        "ID00075637202198610425520",
+        "ID00139637202231703564336",
+        "ID00426637202313170790466"
+    }
+
+    patient_ids = patient_ids - BLACKLISTED_IDS
+    patient_ids = sorted(list(patient_ids))
     random.seed(SEED)
     random.shuffle(patient_ids)
 
@@ -61,11 +78,11 @@ def main():
 
     for split in splits:
         for type_ in types:
-            path = os.path.join(BASE_DIR, RESOLUTION, split, type_)
+            path = os.path.join(BASE_DIR, size, split, type_)
             os.makedirs(path, exist_ok=True)
             print(f"Created/checked directory: {path}")
 
-    info_file_path = os.path.join(BASE_DIR, RESOLUTION,"split_info.json")
+    info_file_path = os.path.join(BASE_DIR, size, 'split_info.json')
     with open(info_file_path, "w") as f:
         json.dump(split_info, f, indent=4)
 
@@ -105,7 +122,7 @@ def main():
         img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
         if img is None: continue
 
-        if img.shape[:2] == TARGET_SIZE:
+        if img.shape[:2] == (H, W):
             img_resized = img
         else:
             img_resized = cv2.resize(img, TARGET_SIZE, interpolation=cv2.INTER_CUBIC)
@@ -115,8 +132,8 @@ def main():
         
         if multiclass_mask_color is None: continue
 
-        lower_blue = np.array([200, 0, 0])
-        upper_blue = np.array([255, 50, 50])
+        lower_blue = np.array([190, 0, 0], dtype=np.uint8)
+        upper_blue = np.array([255, 60, 60], dtype=np.uint8)
         binary_mask = cv2.inRange(multiclass_mask_color, lower_blue, upper_blue)
 
         if binary_mask.shape[:2] == TARGET_SIZE:
@@ -124,9 +141,8 @@ def main():
         else:
             mask_resized = cv2.resize(binary_mask, TARGET_SIZE, interpolation=cv2.INTER_NEAREST)
 
-        # Save processed files
-        cv2.imwrite(os.path.join(BASE_DIR, RESOLUTION, split_dir, 'image', base_name), img_resized)
-        cv2.imwrite(os.path.join(BASE_DIR, RESOLUTION, split_dir, 'mask', base_name), mask_resized)
+        cv2.imwrite(os.path.join(BASE_DIR, size, split_dir, 'image', base_name), img_resized)
+        cv2.imwrite(os.path.join(BASE_DIR, size, split_dir, 'mask', base_name), mask_resized)
 
     print("Processing completed!")
 
