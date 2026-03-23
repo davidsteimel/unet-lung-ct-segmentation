@@ -1,0 +1,29 @@
+hyperparameters:
+  learning_rate: 0.0001
+  batch_size: 8
+  num_epochs: 35
+  num_workers: 4 # Number of subprocesses for data loading
+  pin_memory: true # Whether to keep data in pinned memory
+  load_model: false # Whether to load a pre-trained model
+  save_model: true # Whether to save the model after training
+  target_size: [512, 512]  # Resolution [height, width]
+  kernel_flex: false # Whether to use flexible kernel sizes
+  seed: 44 # Random seed for reproducibility
+
+model:
+  in_channels: 1
+  num_classes: 2 
+
+paths:
+  base_dir: "data_processed"
+  image_dir: "data/images/images/"
+  mask_dir: "data/masks/masks/"
+  test_data_path: "data_processed/512/test"
+  log_dir: "results_512_unet"
+  checkpoint_file: "test_models/unet/512_fixed/best_model.pth"
+
+testing:
+  output_dir: "test_results/unet/512_fix"
+  n_visual_samples: 6
+  threshold: 0.5
+  seed: 44
