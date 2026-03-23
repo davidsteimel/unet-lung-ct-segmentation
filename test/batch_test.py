@@ -19,7 +19,7 @@ TEST_CONFIGS = [
 
 def run_test(config_path, test_images, test_masks, seed=42, n_visual=6, threshold=0.5, output_dir=None):
     script_dir = Path(__file__).parent
-    test_script = script_dir / "test_unet.py"
+    test_script = script_dir / "test_run.py"
     
     cmd = [
         "python", "-u", str(test_script),
