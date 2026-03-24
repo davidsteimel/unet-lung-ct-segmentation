@@ -8,7 +8,7 @@ hyperparameters:
   save_model: true # Whether to save the model after training
   target_size: [512, 512]
   kernel_flex: true # Whether to use flexible kernel sizes
-  seed: 44 # Random seed for reproducibility
+  seed: 42 # Random seed for reproducibility
 
 model:
   in_channels: 1
