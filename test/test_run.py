@@ -14,6 +14,13 @@ from utils.data_loading import BasicDataset
 from unet.unet_model import UNet
 from utils.dice_score import DiceLoss
 
+FONTSIZE_TITLE = 24           # Main plot title
+FONTSIZE_COLUMN_TITLE = 20    # Column headers
+FONTSIZE_ROW_LABEL = 16       # Row labels
+FONTSIZE_LEGEND = 16          # Legend text
+FONTSIZE_SUPTITLE = 26        # Figure suptitle
+
+
 COLOR_TP = np.array([0,   150, 130]) / 255   
 COLOR_FP = np.array([223, 155,  27]) / 255   
 COLOR_FN = np.array([162,  34,  35]) / 255   
@@ -31,6 +38,7 @@ def load_model(config, checkpoint_path, device):
 
     ckpt = torch.load(checkpoint_path, map_location=device)
 
+    # Handle both direct state_dict and wrapped format
     if isinstance(ckpt, dict) and "model" in ckpt:
         ckpt = ckpt["model"]
     elif isinstance(ckpt, dict) and "model_state" in ckpt:
@@ -166,7 +174,7 @@ def make_overlay(image_np, pred_np, mask_np):
 
 @torch.no_grad()
 def visualize_samples(model, dataset, device, indices, threshold=0.5, 
-                      output_file="test_visual.png"):
+                      output_file="test_visual.png", title_suffix=""):
     n_samples = len(indices)
     n_cols  = 4   # image | ground truth | prediction | overlay
     n_rows  = n_samples
@@ -177,7 +185,7 @@ def visualize_samples(model, dataset, device, indices, threshold=0.5,
 
     col_titles = ["Input Image", "Ground Truth", "Prediction", "Overlay (TP/FP/FN)"]
     for col, title in enumerate(col_titles):
-        axes[0, col].set_title(title, fontsize=12, fontweight="bold", pad=8)
+        axes[0, col].set_title(title, fontsize=FONTSIZE_COLUMN_TITLE, fontweight="bold", pad=12)
 
     for row, idx in enumerate(indices):
         sample = dataset[idx]
@@ -210,8 +218,8 @@ def visualize_samples(model, dataset, device, indices, threshold=0.5,
         axes[row, 2].imshow(pred,       cmap="gray", vmin=0, vmax=1)
         axes[row, 3].imshow(overlay)
 
-        axes[row, 0].set_ylabel(f"Sample {idx}", fontsize=9)
-        axes[row, 2].set_xlabel(f"Dice: {img_dice:.3f}", fontsize=9,
+        axes[row, 0].set_ylabel(f"Sample {idx}", fontsize=FONTSIZE_ROW_LABEL, fontweight="bold")
+        axes[row, 2].set_xlabel(f"Dice: {img_dice:.3f}", fontsize=FONTSIZE_ROW_LABEL,
                                  color="#404040", fontweight="bold")
 
         for ax in axes[row]:
@@ -223,15 +231,67 @@ def visualize_samples(model, dataset, device, indices, threshold=0.5,
         mpatches.Patch(color=COLOR_FN, label="FN"),
     ]
     fig.legend(handles=patches, loc="lower center", ncol=3,
-               fontsize=10, framealpha=0.9,
-               bbox_to_anchor=(0.5, -0.02))
+               fontsize=FONTSIZE_LEGEND, framealpha=0.9,
+               bbox_to_anchor=(0.5, -0.01))
 
-    plt.suptitle("Test Set — Segmentation Predictions vs Ground Truth",
-                 fontsize=14, fontweight="bold", y=1.01)
+    title = "Test Set — Segmentation Predictions vs Ground Truth"
+    if title_suffix:
+        title = f"{title} — {title_suffix}"
+    
+    plt.suptitle(title, fontsize=FONTSIZE_SUPTITLE, fontweight="bold", y=1.005)
     plt.tight_layout()
     plt.savefig(output_file, dpi=200, bbox_inches="tight")
     plt.close()
     print(f"  Visualization saved: {output_file}")
+
+def find_samples_by_dice_range(per_image_metrics, target_dice, tolerance=0.1):
+    candidates = []
+    for m in per_image_metrics:
+        diff = abs(m["dice"] - target_dice)
+        if diff <= tolerance:
+            candidates.append((m["image_idx"], m["dice"], diff))
+    
+    if not candidates:
+        candidates = [(m["image_idx"], m["dice"], abs(m["dice"] - target_dice)) 
+                     for m in per_image_metrics]
+        
+    candidates.sort(key=lambda x: x[2])
+    return candidates[0][0], candidates[0][1]
+
+
+def visualize_dice_based_samples(model, dataset, device, per_image_metrics, 
+                                 threshold=0.5, output_dir="test_results"):
+    
+    target_dices = [0.4, 0.6, 0.8]
+    selected_samples = []
+    
+    for target in target_dices:
+        idx, actual_dice = find_samples_by_dice_range(per_image_metrics, target, tolerance=0.1)
+        selected_samples.append(idx)
+    
+    vis_file = os.path.join(output_dir, "test_visual_dice_ranges.png")
+    visualize_samples(
+        model=model,
+        dataset=dataset,
+        device=device,
+        indices=selected_samples,
+        threshold=threshold,
+        output_file=vis_file,
+        title_suffix="Dice Score Ranges (0.4, 0.6, 0.8)"
+    )
+
+    idx_worst, dice_worst = find_samples_by_dice_range(per_image_metrics, 0.0, tolerance=0.2)
+
+    vis_file_worst = os.path.join(output_dir, "test_visual_dice_zero.png")
+    visualize_samples(
+        model=model,
+        dataset=dataset,
+        device=device,
+        indices=[idx_worst],
+        threshold=threshold,
+        output_file=vis_file_worst,
+        title_suffix=f"Worst Case (Dice: {dice_worst:.4f})"
+    )
 
 
 def get_consistent_sample_indices(dataset_size, n_samples, seed):
@@ -306,60 +366,30 @@ def main():
     parser = argparse.ArgumentParser(description="Test UNet segmentation model")
     parser.add_argument("--config", required=True,
                         help="Path to config.yaml")
-    parser.add_argument("--test_images", default=None,
-                        help="Path to test image directory (overrides config)")
-    parser.add_argument("--test_masks", default=None,
-                        help="Path to test mask directory (overrides config)")
-    parser.add_argument("--n_visual", type=int, default=None,
-                        help="Number of random samples to visualize (overrides config)")
-    parser.add_argument("--threshold", type=float, default=None,
-                        help="Threshold for binary segmentation (overrides config)")
-    parser.add_argument("--output_dir", default=None,
-                        help="Output directory for results (overrides config)")
-    parser.add_argument("--seed", type=int, default=None,
-                        help="Seed for reproducible sample selection (overrides config)")
+    parser.add_argument("--n_visual", type=int, default=6,
+                        help="Number of random samples to visualize")
+    parser.add_argument("--threshold", type=float, default=0.5,
+                        help="Threshold for binary segmentation")
+    parser.add_argument("--seed", type=int, default=42,
+                        help="Seed for reproducible sample selection (for visualization only)")
     args = parser.parse_args()
 
     with open(args.config) as f:
         config = yaml.load(f, Loader=yaml.SafeLoader)
 
-    if "testing" in config:
-        testing_cfg = config["testing"]
-        output_dir = args.output_dir or testing_cfg.get("output_dir", "test_results")
-        n_visual = args.n_visual if args.n_visual is not None else testing_cfg.get("n_visual_samples", 6)
-        threshold = args.threshold if args.threshold is not None else testing_cfg.get("threshold", 0.5)
-        seed = args.seed if args.seed is not None else testing_cfg.get("seed", 42)
-    else:
-        output_dir = args.output_dir or "test_results"
-        n_visual = args.n_visual if args.n_visual is not None else 6
-        threshold = args.threshold if args.threshold is not None else 0.5
-        seed = args.seed if args.seed is not None else 42
-
-    if args.test_images and args.test_masks:
-        test_images = args.test_images
-        test_masks = args.test_masks
-    elif "paths" in config and "test_data_path" in config["paths"]:
-        test_data_path = config["paths"]["test_data_path"]
-        test_images = os.path.join(test_data_path, "image")
-        test_masks = os.path.join(test_data_path, "mask")
-    else:
-        raise ValueError(
-            "Must specify either:\n"
-            "  1. --test_images and --test_masks, OR\n"
-            "  2. test_data_path in config['paths']"
-        )
-
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
     if torch.cuda.is_available():
-        torch.cuda.manual_seed(seed)
-        torch.cuda.manual_seed_all(seed)
+        torch.cuda.manual_seed(args.seed)
+        torch.cuda.manual_seed_all(args.seed)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
     # Get checkpoint path
     checkpoint_path = config["paths"]["checkpoint_file"]
+    test_images_dir = config["paths"]["test_data_path"]
+    output_dir = config["testing"]["output_dir"]
     
     if not os.path.exists(checkpoint_path):
         raise FileNotFoundError(f"\n\nCheckpoint not found: {checkpoint_path}\n")
@@ -368,14 +398,9 @@ def main():
 
     model = load_model(config, checkpoint_path, device)
 
-    if not os.path.exists(test_images):
-        raise FileNotFoundError(f"Test images directory not found: {test_images}")
-    if not os.path.exists(test_masks):
-        raise FileNotFoundError(f"Test masks directory not found: {test_masks}")
-
     test_dataset = BasicDataset(
-        images_dir=test_images,
-        masks_dir=test_masks,
+        images_dir=os.path.join(test_images_dir, "image"),
+        masks_dir=os.path.join(test_images_dir, "mask"),
         is_train=False,
     )
 
@@ -390,7 +415,7 @@ def main():
     }
     
     per_image_metrics = run_evaluation_per_image(
-        model, test_dataset, device, threshold=threshold
+        model, test_dataset, device, threshold=args.threshold
     )
     
     per_image_csv = os.path.join(output_dir, f"per_image_metrics_{res}_{kernel}_unet.csv")
@@ -406,13 +431,13 @@ def main():
     )
     
     aggregate_metrics = run_evaluation_aggregate(
-        model, test_loader, device, threshold=threshold
+        model, test_loader, device, threshold=args.threshold
     )
 
     sample_indices = get_consistent_sample_indices(
         len(test_dataset), 
-        n_visual, 
-        seed
+        args.n_visual, 
+        args.seed
     )
 
     vis_out = os.path.join(output_dir, f"test_visual_{res}_{kernel}_unet.png")
@@ -421,14 +446,24 @@ def main():
         dataset=test_dataset,
         device=device,
         indices=sample_indices,
-        threshold=threshold,
+        threshold=args.threshold,
         output_file=vis_out,
+        title_suffix="Random Samples"
+    )
+
+    visualize_dice_based_samples(
+        model=model,
+        dataset=test_dataset,
+        device=device,
+        per_image_metrics=per_image_metrics,
+        threshold=args.threshold,
+        output_dir=output_dir
     )
 
     aggregate_csv = os.path.join(output_dir, f"aggregate_metrics_{res}_{kernel}_unet.csv")
     save_aggregate_metrics(
         aggregate_metrics, aggregate_csv, config_info, 
-        sample_indices, seed, threshold
+        sample_indices, args.seed, args.threshold
     )
     
 if __name__ == "__main__":

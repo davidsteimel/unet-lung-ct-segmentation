@@ -17,22 +17,17 @@ TEST_CONFIGS = [
     (1024, "flex"),
 ]
 
-def run_test(config_path, test_images, test_masks, seed=42, n_visual=6, threshold=0.5, output_dir=None):
+def run_test(config_path, seed=42, n_visual=6, threshold=0.5, output_dir=None):
     script_dir = Path(__file__).parent
     test_script = script_dir / "test_run.py"
     
     cmd = [
         "python", "-u", str(test_script),
         "--config", config_path,
-        "--test_images", test_images,
-        "--test_masks", test_masks,
         "--seed", str(seed),
         "--n_visual", str(n_visual),
         "--threshold", str(threshold),
     ]
-    
-    if output_dir:
-        cmd.extend(["--output_dir", output_dir])
 
     print(f"Running: {' '.join(cmd)}")
     
@@ -54,11 +49,6 @@ def main():
         "--configs_dir",
         default="experiments/unettest",
         help="Base directory containing test configs"
-    )
-    parser.add_argument(
-        "--test_data_base",
-        default="data_processed",
-        help="Base directory containing test data"
     )
     parser.add_argument(
         "--seed",
@@ -97,15 +87,9 @@ def main():
         action="store_true",
         help="Continue with next test if one fails"
     )
-    parser.add_argument(
-        "--output_base",
-        default="test_results_unet",
-        help="Base directory for test results"
-    )
     
     args = parser.parse_args()
     
-    # Filter configurations based on arguments
     configs_to_test = [
         (res, kernel) 
         for res, kernel in TEST_CONFIGS 
@@ -122,11 +106,6 @@ def main():
     for i, (res, kernel) in enumerate(configs_to_test, 1):
         config_name = f"{res}_{kernel}/config.yaml"
         config_path = os.path.join(args.configs_dir, config_name)
-        
-        test_images = os.path.join(args.test_data_base, str(res), "test", "image")
-        test_masks = os.path.join(args.test_data_base, str(res), "test", "mask")
-        
-        output_dir = os.path.join(args.output_base, f"{res}_{kernel}")
 
         if not os.path.exists(config_path):
             print(f"Config not found: {config_path}")
@@ -134,27 +113,11 @@ def main():
             results[f"{res}_{kernel}"] = "SKIPPED "
             continue
         
-        if not os.path.exists(test_images):
-            print(f"Test images not found: {test_images}")
-            print(f"Skipping {res}_{kernel}")
-            results[f"{res}_{kernel}"] = "SKIPPED"
-            continue
-        
-        if not os.path.exists(test_masks):
-            print(f"Test masks not found: {test_masks}")
-            print(f"Skipping {res}_{kernel}")
-            results[f"{res}_{kernel}"] = "SKIPPED"
-            continue
-        
-        # Run test
         success = run_test(
             config_path,
-            test_images,
-            test_masks,
             seed=args.seed,
             n_visual=args.n_visual,
             threshold=args.threshold,
-            output_dir=output_dir
         )
         
         if success:
@@ -167,23 +130,16 @@ def main():
                 print(f"Stopping due to failed test: {res}_{kernel}")
                 break
     
-    successful = sum(1 for s in results.values() if s == "SUCCESS")
     skipped = sum(1 for s in results.values() if s.startswith("SKIPPED"))
-    
-    if results:
-        print("\n  Detailed Results:")
-        for config, status in results.items():
-            symbol = "✓" if status == "SUCCESS" else ("✗" if status == "FAILED" else "⊘")
-            print(f"    {symbol} {config:20s} → {status}")
-        print(f"{'='*80}\n")
 
     if failed_tests:
         print(f"{len(failed_tests)} test(s) failed: {', '.join(failed_tests)}")
         sys.exit(1)
     else:
+        successful = sum(1 for s in results.values() if s == "SUCCESS")
         print(f"All {successful} tests completed successfully!")
         if skipped > 0:
-            print(f"  ({skipped} tests skipped)")
+            print(f"({skipped} tests skipped)")
         sys.exit(0)
 
 
