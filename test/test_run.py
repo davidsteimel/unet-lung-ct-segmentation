@@ -230,11 +230,14 @@ def visualize_samples(model, dataset, device, indices, threshold=0.5,
         mpatches.Patch(color=COLOR_FP, label="FP"),
         mpatches.Patch(color=COLOR_FN, label="FN"),
     ]
-    fig.legend(handles=patches, loc="lower center", ncol=3,
-               fontsize=FONTSIZE_LEGEND, framealpha=0.9,
-               bbox_to_anchor=(0.5, -0.01))
+    fig.legend(handles=patches, 
+               loc="upper center",           
+               bbox_to_anchor=(0.5, -0.01),  
+               ncol=3,                        
+               fontsize=FONTSIZE_LEGEND, 
+               framealpha=0.9)
 
-    title = "Test Set — Segmentation Predictions vs Ground Truth"
+    title = "Segmentation Predictions vs Ground Truth"
     if title_suffix:
         title = f"{title} — {title_suffix}"
     
